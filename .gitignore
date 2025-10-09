@@ -32,6 +32,24 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+
+# secrets and keys
+*.key
+*.pem
+*.jks
+*.p12
+*.p8
+serviceAccountKey.json
+firebase-config.json
+
+# IDE
+.vscode/
+.idea/
+
+# logs
+logs/
+*.log
 
 # typescript
 *.tsbuildinfo

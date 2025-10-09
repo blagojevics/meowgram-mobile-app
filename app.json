@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "meowgram-native",
-    "slug": "meowgram-native",
+    "slug": "meowgram-mobile-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -25,6 +25,18 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6db38f01-ece8-42b8-a21e-f6c71b390d48"
+      },
+      "firebaseApiKey": "your_api_key_here",
+      "firebaseAuthDomain": "your_project_id.firebaseapp.com",
+      "firebaseProjectId": "your_project_id",
+      "firebaseStorageBucket": "your_project_id.appspot.com",
+      "firebaseMessagingSenderId": "your_sender_id",
+      "firebaseAppId": "your_app_id"
+    },
+    "owner": "blagoe"
   }
 }
