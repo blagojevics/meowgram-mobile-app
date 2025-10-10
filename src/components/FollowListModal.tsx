@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface FollowUser {
   id: string;
@@ -34,6 +35,7 @@ const FollowListModal: React.FC<FollowListModalProps> = ({
 }) => {
   const [users, setUsers] = useState<FollowUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const { colors } = useTheme();
 
   useEffect(() => {
     if (!visible || !userId) return;
@@ -57,7 +59,7 @@ const FollowListModal: React.FC<FollowListModalProps> = ({
         alignItems: "center",
         padding: 15,
         borderBottomWidth: 1,
-        borderBottomColor: "#eee",
+        borderBottomColor: colors.borderColor,
       }}
     >
       <Image
@@ -71,7 +73,11 @@ const FollowListModal: React.FC<FollowListModalProps> = ({
           marginRight: 15,
         }}
       />
-      <Text style={{ fontWeight: "600", fontSize: 16 }}>{item.username}</Text>
+      <Text
+        style={{ fontWeight: "600", fontSize: 16, color: colors.textPrimary }}
+      >
+        {item.username}
+      </Text>
     </View>
   );
 
@@ -91,7 +97,7 @@ const FollowListModal: React.FC<FollowListModalProps> = ({
       >
         <View
           style={{
-            backgroundColor: "#fff",
+            backgroundColor: colors.bgPrimary,
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
             maxHeight: "70%",
@@ -105,14 +111,22 @@ const FollowListModal: React.FC<FollowListModalProps> = ({
               alignItems: "center",
               padding: 20,
               borderBottomWidth: 1,
-              borderBottomColor: "#eee",
+              borderBottomColor: colors.borderColor,
             }}
           >
-            <Text style={{ fontSize: 18, fontWeight: "bold" }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                color: colors.textPrimary,
+              }}
+            >
               {type === "followers" ? "Followers" : "Following"}
             </Text>
             <TouchableOpacity onPress={onClose}>
-              <Text style={{ fontSize: 24, color: "#666" }}>✕</Text>
+              <Text style={{ fontSize: 24, color: colors.textSecondary }}>
+                ✕
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -124,7 +138,7 @@ const FollowListModal: React.FC<FollowListModalProps> = ({
                 alignItems: "center",
               }}
             >
-              <ActivityIndicator size="large" color="#007AFF" />
+              <ActivityIndicator size="large" color={colors.brandPrimary} />
             </View>
           ) : (
             <FlatList
@@ -133,7 +147,7 @@ const FollowListModal: React.FC<FollowListModalProps> = ({
               keyExtractor={(item) => item.id}
               ListEmptyComponent={
                 <View style={{ alignItems: "center", padding: 50 }}>
-                  <Text style={{ color: "#666" }}>
+                  <Text style={{ color: colors.textSecondary }}>
                     No {type === "followers" ? "followers" : "following"} yet.
                   </Text>
                 </View>

@@ -18,6 +18,7 @@ import {
   increment,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface CommentInputProps {
   postId: string;
@@ -33,6 +34,7 @@ const CommentInput: React.FC<CommentInputProps> = ({
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textInputRef = useRef<TextInput>(null);
+  const { colors } = useTheme();
 
   const handleSubmit = async () => {
     const trimmed = text.trim();
@@ -86,22 +88,32 @@ const CommentInput: React.FC<CommentInputProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.inputContainer}>
-        <Image
-          source={{
-            uri:
-              currentUser?.avatarUrl ||
-              currentUser?.photoURL ||
-              "https://via.placeholder.com/32",
-          }}
-          style={styles.avatar}
-        />
+        {currentUser?.avatarUrl || currentUser?.photoURL ? (
+          <Image
+            source={{ uri: currentUser?.avatarUrl || currentUser?.photoURL }}
+            style={[styles.avatar, { borderColor: colors.borderColor }]}
+          />
+        ) : (
+          <Image
+            source={require("../../assets/placeholderImg.jpg")}
+            style={[styles.avatar, { borderColor: colors.borderColor }]}
+          />
+        )}
 
         <TextInput
           ref={textInputRef}
           value={text}
           onChangeText={setText}
           placeholder="Write a comment..."
-          style={styles.textInput}
+          placeholderTextColor={colors.textMuted}
+          style={[
+            styles.textInput,
+            {
+              color: colors.textPrimary,
+              borderColor: colors.borderLight,
+              backgroundColor: colors.bgSecondary,
+            },
+          ]}
           multiline
           maxLength={500}
           onKeyPress={handleKeyPress}
@@ -113,12 +125,24 @@ const CommentInput: React.FC<CommentInputProps> = ({
           disabled={!text.trim() || isSubmitting}
           style={[
             styles.submitButton,
+            {
+              backgroundColor:
+                !text.trim() || isSubmitting
+                  ? colors.bgSecondary
+                  : colors.brandPrimary,
+            },
             (!text.trim() || isSubmitting) && styles.submitButtonDisabled,
           ]}
         >
           <Text
             style={[
               styles.sendText,
+              {
+                color:
+                  !text.trim() || isSubmitting
+                    ? colors.textMuted
+                    : colors.bgPrimary,
+              },
               (!text.trim() || isSubmitting) && styles.sendTextDisabled,
             ]}
           >
@@ -132,9 +156,10 @@ const CommentInput: React.FC<CommentInputProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     paddingVertical: 12,
-    backgroundColor: "#fff",
+    // make input area visually blend with post card (transparent)
+    backgroundColor: "transparent",
   },
   inputContainer: {
     flexDirection: "row",
@@ -146,12 +171,11 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#ddd",
   },
   textInput: {
     flex: 1,
+    // transparent background and subtle border to match card
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -164,7 +188,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#0095f6",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -172,7 +195,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f0f0",
   },
   sendText: {
-    color: "#fff",
     fontSize: 12,
     fontWeight: "600",
   },

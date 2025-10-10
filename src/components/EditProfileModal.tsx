@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface UserProfile {
   uid: string;
@@ -42,6 +43,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [username, setUsername] = useState(currentUser?.username || "");
   const [bio, setBio] = useState(currentUser?.bio || "");
   const [loading, setLoading] = useState(false);
+  const { colors } = useTheme();
 
   const handleSave = async () => {
     if (!currentUser?.uid) return;
@@ -95,7 +97,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
       >
         <View
           style={{
-            backgroundColor: "#fff",
+            backgroundColor: colors.bgPrimary,
             borderRadius: 12,
             width: "90%",
             maxWidth: 400,
@@ -108,61 +110,93 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
               fontWeight: "bold",
               marginBottom: 20,
               textAlign: "center",
+              color: colors.textPrimary,
             }}
           >
             Edit Profile
           </Text>
 
           <View style={{ marginBottom: 20 }}>
-            <Text style={{ fontWeight: "600", marginBottom: 5 }}>
+            <Text
+              style={{
+                fontWeight: "600",
+                marginBottom: 5,
+                color: colors.textPrimary,
+              }}
+            >
               Display Name
             </Text>
             <TextInput
               style={{
                 borderWidth: 1,
-                borderColor: "#ddd",
+                borderColor: colors.borderColor,
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
+                color: colors.textPrimary,
+                backgroundColor: colors.bgSecondary,
               }}
               value={displayName}
               onChangeText={setDisplayName}
               placeholder="Enter your display name"
+              placeholderTextColor={colors.textMuted}
             />
           </View>
 
           <View style={{ marginBottom: 20 }}>
-            <Text style={{ fontWeight: "600", marginBottom: 5 }}>Username</Text>
+            <Text
+              style={{
+                fontWeight: "600",
+                marginBottom: 5,
+                color: colors.textPrimary,
+              }}
+            >
+              Username
+            </Text>
             <TextInput
               style={{
                 borderWidth: 1,
-                borderColor: "#ddd",
+                borderColor: colors.borderColor,
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
+                color: colors.textPrimary,
+                backgroundColor: colors.bgSecondary,
               }}
               value={username}
               onChangeText={setUsername}
               placeholder="Enter your username"
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
             />
           </View>
 
           <View style={{ marginBottom: 30 }}>
-            <Text style={{ fontWeight: "600", marginBottom: 5 }}>Bio</Text>
+            <Text
+              style={{
+                fontWeight: "600",
+                marginBottom: 5,
+                color: colors.textPrimary,
+              }}
+            >
+              Bio
+            </Text>
             <TextInput
               style={{
                 borderWidth: 1,
-                borderColor: "#ddd",
+                borderColor: colors.borderColor,
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
                 height: 80,
                 textAlignVertical: "top",
+                color: colors.textPrimary,
+                backgroundColor: colors.bgSecondary,
               }}
               value={bio}
               onChangeText={setBio}
               placeholder="Tell us about yourself..."
+              placeholderTextColor={colors.textMuted}
               multiline
               numberOfLines={3}
             />
@@ -173,7 +207,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
           >
             <TouchableOpacity
               style={{
-                backgroundColor: "#f0f0f0",
+                backgroundColor: colors.bgSecondary,
                 paddingHorizontal: 20,
                 paddingVertical: 12,
                 borderRadius: 8,
@@ -183,14 +217,20 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
               onPress={handleCancel}
               disabled={loading}
             >
-              <Text style={{ textAlign: "center", fontWeight: "600" }}>
+              <Text
+                style={{
+                  textAlign: "center",
+                  fontWeight: "600",
+                  color: colors.textPrimary,
+                }}
+              >
                 Cancel
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={{
-                backgroundColor: "#007AFF",
+                backgroundColor: colors.brandPrimary,
                 paddingHorizontal: 20,
                 paddingVertical: 12,
                 borderRadius: 8,
@@ -201,11 +241,11 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.bgPrimary} />
               ) : (
                 <Text
                   style={{
-                    color: "#fff",
+                    color: colors.bgPrimary,
                     textAlign: "center",
                     fontWeight: "600",
                   }}

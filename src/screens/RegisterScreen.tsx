@@ -31,7 +31,8 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     try {
       await register(email, password, { name, username });
       Alert.alert("Account created");
-      navigation.replace("Home");
+      // After register, navigate to the app main tabs
+      navigation.replace("MainTabs");
     } catch (err: any) {
       setError(err.message || "Registration failed");
     }

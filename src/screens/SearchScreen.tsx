@@ -12,7 +12,10 @@ import {
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../contexts/AuthContext";
+import { useTheme } from "../contexts/ThemeContext";
 import {
   collection,
   query,
@@ -47,11 +50,16 @@ interface PostResult {
 
 const SearchScreen: React.FC = () => {
   const { user } = useAuth();
+  const { colors } = useTheme();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [searchQuery, setSearchQuery] = useState("");
   const [userResults, setUserResults] = useState<UserResult[]>([]);
   const [postResults, setPostResults] = useState<PostResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [recommendedUsers, setRecommendedUsers] = useState<UserResult[]>([]);
+  const [recommendedPosts, setRecommendedPosts] = useState<PostResult[]>([]);
 
   // Debounced search
   useEffect(() => {
@@ -62,6 +70,8 @@ const SearchScreen: React.FC = () => {
         setUserResults([]);
         setPostResults([]);
         setHasSearched(false);
+        // fetch recommended users/posts when search is cleared
+        fetchRecommended();
       }
     }, 300);
 
@@ -151,24 +161,97 @@ const SearchScreen: React.FC = () => {
     }
   };
 
+  const fetchRecommended = async () => {
+    try {
+      // Recommended users: latest 5 users
+      const usersQuery = query(
+        collection(db, "users"),
+        orderBy("createdAt", "desc"),
+        limit(5)
+      );
+      const usersSnap = await getDocs(usersQuery);
+      const recUsers = usersSnap.docs.map((doc) => ({
+        ...(doc.data() as UserResult),
+        id: doc.id,
+      }));
+
+      // Recommended posts: latest 6 posts
+      const postsQuery = query(
+        collection(db, "posts"),
+        orderBy("createdAt", "desc"),
+        limit(12)
+      );
+      const postsSnap = await getDocs(postsQuery);
+      const recentPosts = postsSnap.docs.map((doc) => ({
+        ...(doc.data() as PostResult),
+        id: doc.id,
+      }));
+
+      // Fetch post owners for mapping
+      const userIds = [...new Set(recentPosts.map((p) => p.userId))];
+      const userPromises = userIds.map(async (userId) => {
+        const userQuery = query(
+          collection(db, "users"),
+          where("uid", "==", userId)
+        );
+        const userDoc = await getDocs(userQuery);
+        if (!userDoc.empty) {
+          const userData = userDoc.docs[0].data() as UserResult;
+          return {
+            userId,
+            username: userData.username,
+            avatarUrl: userData.avatarUrl,
+          };
+        }
+        return { userId, username: "Unknown", avatarUrl: undefined };
+      });
+
+      const userDataResults = await Promise.all(userPromises);
+      const userDataMap = Object.fromEntries(
+        userDataResults.map(({ userId, username, avatarUrl }) => [
+          userId,
+          { username, avatarUrl },
+        ])
+      );
+
+      const recPosts = recentPosts.slice(0, 6).map((post) => ({
+        ...post,
+        username: userDataMap[post.userId]?.username || "Unknown",
+        userAvatar: userDataMap[post.userId]?.avatarUrl,
+      }));
+
+      setRecommendedUsers(recUsers);
+      setRecommendedPosts(recPosts);
+    } catch (err) {
+      console.error("Failed to load recommended items:", err);
+    }
+  };
+
   const renderUserResult = ({ item }: { item: UserResult }) => (
     <TouchableOpacity
-      style={styles.userResult}
+      style={[styles.userResult, { backgroundColor: colors.bgSecondary }]}
       onPress={() => {
-        // Navigate to user profile
-        console.log("Navigate to user:", item.uid);
+        // Navigate to user profile (use Firestore doc id)
+        navigation.navigate("UserProfile", { userId: item.id });
       }}
     >
       <Image
-        source={{
-          uri: item.avatarUrl || "https://via.placeholder.com/50",
-        }}
+        source={
+          item.avatarUrl
+            ? { uri: item.avatarUrl }
+            : require("../../assets/placeholderImg.jpg")
+        }
         style={styles.userAvatar}
       />
       <View style={styles.userInfo}>
-        <Text style={styles.username}>{item.username}</Text>
+        <Text style={[styles.username, { color: colors.textPrimary }]}>
+          {item.username}
+        </Text>
         {item.bio && (
-          <Text style={styles.userBio} numberOfLines={1}>
+          <Text
+            style={[styles.userBio, { color: colors.textSecondary }]}
+            numberOfLines={1}
+          >
             {item.bio}
           </Text>
         )}
@@ -178,33 +261,56 @@ const SearchScreen: React.FC = () => {
 
   const renderPostResult = ({ item }: { item: PostResult }) => (
     <TouchableOpacity
-      style={styles.postResult}
+      style={[styles.postResult, { backgroundColor: colors.bgSecondary }]}
       onPress={() => {
         // Navigate to post detail
-        console.log("Navigate to post:", item.id);
+        navigation.navigate("PostDetail", { postId: item.id });
       }}
     >
-      <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
+      <Image
+        source={
+          item.imageUrl
+            ? { uri: item.imageUrl }
+            : require("../../assets/placeholderImg.jpg")
+        }
+        style={styles.postImage}
+      />
       <View style={styles.postInfo}>
-        <Text style={styles.postCaption} numberOfLines={2}>
+        <Text
+          style={[styles.postCaption, { color: colors.textPrimary }]}
+          numberOfLines={2}
+        >
           {item.caption || "No caption"}
         </Text>
-        <Text style={styles.postUser}>by {item.username}</Text>
+        <Text style={[styles.postUser, { color: colors.textSecondary }]}>
+          by {item.username}
+        </Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Search</Text>
+    <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
+      <View style={[styles.header, { borderBottomColor: colors.borderColor }]}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Search
+        </Text>
       </View>
 
       {/* Search Input */}
-      <View style={styles.searchContainer}>
+      <View
+        style={[
+          styles.searchContainer,
+          { borderBottomColor: colors.borderColor },
+        ]}
+      >
         <TextInput
-          style={styles.searchInput}
+          style={[
+            styles.searchInput,
+            { borderColor: colors.borderColor, color: colors.textPrimary },
+          ]}
           placeholder="Search users and posts..."
+          placeholderTextColor={colors.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoCapitalize="none"
@@ -215,8 +321,10 @@ const SearchScreen: React.FC = () => {
       {/* Results */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Searching...</Text>
+          <ActivityIndicator size="large" color={colors.brandPrimary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Searching...
+          </Text>
         </View>
       ) : hasSearched ? (
         <FlatList
@@ -227,7 +335,11 @@ const SearchScreen: React.FC = () => {
               {/* Users Section */}
               {userResults.length > 0 && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Users</Text>
+                  <Text
+                    style={[styles.sectionTitle, { color: colors.textPrimary }]}
+                  >
+                    Users
+                  </Text>
                   <FlatList
                     data={userResults}
                     renderItem={renderUserResult}
@@ -242,7 +354,11 @@ const SearchScreen: React.FC = () => {
               {/* Posts Section */}
               {postResults.length > 0 && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Posts</Text>
+                  <Text
+                    style={[styles.sectionTitle, { color: colors.textPrimary }]}
+                  >
+                    Posts
+                  </Text>
                   <FlatList
                     data={postResults}
                     renderItem={renderPostResult}
@@ -256,7 +372,12 @@ const SearchScreen: React.FC = () => {
               {/* No Results */}
               {userResults.length === 0 && postResults.length === 0 && (
                 <View style={styles.noResults}>
-                  <Text style={styles.noResultsText}>
+                  <Text
+                    style={[
+                      styles.noResultsText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
                     No results found for "{searchQuery}"
                   </Text>
                 </View>
@@ -265,9 +386,63 @@ const SearchScreen: React.FC = () => {
           )}
         />
       ) : (
-        <View style={styles.initialState}>
-          <Text style={styles.initialText}>Start typing to search</Text>
-        </View>
+        // Show recommended users & posts when user hasn't searched yet
+        <FlatList
+          data={[]}
+          renderItem={() => null}
+          ListHeaderComponent={() => (
+            <View>
+              {/* Recommended Users Section */}
+              {recommendedUsers.length > 0 && (
+                <View style={styles.section}>
+                  <Text
+                    style={[styles.sectionTitle, { color: colors.textPrimary }]}
+                  >
+                    Recommended Users
+                  </Text>
+                  <FlatList
+                    data={recommendedUsers}
+                    renderItem={renderUserResult}
+                    keyExtractor={(item) => item.id}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.usersList}
+                  />
+                </View>
+              )}
+
+              {/* Recommended Posts Section */}
+              {recommendedPosts.length > 0 && (
+                <View style={styles.section}>
+                  <Text
+                    style={[styles.sectionTitle, { color: colors.textPrimary }]}
+                  >
+                    Recommended Posts
+                  </Text>
+                  <FlatList
+                    data={recommendedPosts}
+                    renderItem={renderPostResult}
+                    keyExtractor={(item) => item.id}
+                    numColumns={2}
+                    contentContainerStyle={styles.postsGrid}
+                  />
+                </View>
+              )}
+
+              {/* Fallback message if no recommendations */}
+              {recommendedUsers.length === 0 &&
+                recommendedPosts.length === 0 && (
+                  <View style={styles.initialState}>
+                    <Text
+                      style={[styles.initialText, { color: colors.textMuted }]}
+                    >
+                      Start typing to search
+                    </Text>
+                  </View>
+                )}
+            </View>
+          )}
+        />
       )}
     </View>
   );
@@ -276,7 +451,6 @@ const SearchScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
     width: width > 550 ? width * 0.5 : width,
     alignSelf: "center",
   },
@@ -285,7 +459,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
   },
   title: {
     fontSize: 18,
@@ -299,25 +472,21 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     fontSize: 16,
-    color: "#666",
     textAlign: "center",
     marginBottom: 10,
   },
   comingSoon: {
     fontSize: 14,
-    color: "#999",
     textAlign: "center",
   },
   searchContainer: {
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
   },
   searchInput: {
     height: 40,
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 20,
     paddingHorizontal: 15,
     fontSize: 16,
@@ -330,7 +499,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: "#666",
   },
   section: {
     marginTop: 20,
@@ -349,7 +517,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 10,
     marginRight: 10,
-    backgroundColor: "#f9f9f9",
     borderRadius: 10,
     minWidth: 120,
   },
@@ -368,7 +535,6 @@ const styles = StyleSheet.create({
   },
   userBio: {
     fontSize: 14,
-    color: "#666",
     marginTop: 2,
   },
   postsGrid: {
@@ -377,7 +543,6 @@ const styles = StyleSheet.create({
   postResult: {
     flex: 1,
     margin: 5,
-    backgroundColor: "#f9f9f9",
     borderRadius: 10,
     overflow: "hidden",
   },
@@ -395,7 +560,6 @@ const styles = StyleSheet.create({
   },
   postUser: {
     fontSize: 12,
-    color: "#666",
   },
   noResults: {
     flex: 1,
@@ -405,7 +569,6 @@ const styles = StyleSheet.create({
   },
   noResultsText: {
     fontSize: 16,
-    color: "#666",
     textAlign: "center",
   },
   initialState: {
@@ -415,7 +578,6 @@ const styles = StyleSheet.create({
   },
   initialText: {
     fontSize: 16,
-    color: "#999",
   },
 });
 

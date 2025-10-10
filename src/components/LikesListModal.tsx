@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface LikesListModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ const LikesListModal: React.FC<LikesListModalProps> = ({
   likedByUsers,
 }) => {
   const [users, setUsers] = useState<any[]>([]);
+  const { colors } = useTheme();
 
   useEffect(() => {
     if (!isOpen || likedByUsers.length === 0) return;
@@ -43,8 +45,10 @@ const LikesListModal: React.FC<LikesListModalProps> = ({
   }, [isOpen, likedByUsers]);
 
   const renderUser = ({ item }: { item: any }) => (
-    <View style={styles.userItem}>
-      <Text style={styles.username}>{item.username || "Unknown User"}</Text>
+    <View style={[styles.userItem, { borderBottomColor: colors.borderColor }]}>
+      <Text style={[styles.username, { color: colors.textPrimary }]}>
+        {item.username || "Unknown User"}
+      </Text>
     </View>
   );
 
@@ -57,18 +61,28 @@ const LikesListModal: React.FC<LikesListModalProps> = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.header}>
+      <View
+        style={[styles.modalContainer, { backgroundColor: colors.bgPrimary }]}
+      >
+        <View
+          style={[styles.header, { borderBottomColor: colors.borderColor }]}
+        >
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeText}>✕</Text>
+            <Text style={[styles.closeText, { color: colors.textSecondary }]}>
+              ✕
+            </Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Likes</Text>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>
+            Likes
+          </Text>
           <View style={styles.placeholder} />
         </View>
 
         <View style={styles.content}>
           {users.length === 0 ? (
-            <Text style={styles.emptyText}>No likes yet</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              No likes yet
+            </Text>
           ) : (
             <FlatList
               data={users}
@@ -87,7 +101,6 @@ const LikesListModal: React.FC<LikesListModalProps> = ({
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   header: {
     flexDirection: "row",
@@ -96,19 +109,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
   },
   closeButton: {
     padding: 8,
   },
   closeText: {
     fontSize: 18,
-    color: "#666",
   },
   title: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
   },
   placeholder: {
     width: 40,
@@ -123,16 +133,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
   },
   username: {
     fontSize: 16,
-    color: "#333",
   },
   emptyText: {
     textAlign: "center",
     fontSize: 16,
-    color: "#666",
     marginTop: 50,
   },
 });

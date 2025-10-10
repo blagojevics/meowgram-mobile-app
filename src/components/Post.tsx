@@ -13,7 +13,9 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
 } from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useTheme } from "../contexts/ThemeContext";
 import {
   deleteDoc,
   doc,
@@ -81,6 +83,7 @@ export default function Post({
   isFullScreen,
 }: PostProps) {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const [isLiked, setIsLiked] = useState(
     currentUser &&
       post.likedByUsers &&
@@ -294,27 +297,43 @@ export default function Post({
   });
 
   return (
-    <View style={[styles.postCard, isFullScreen && styles.postCardFullscreen]}>
+    <View
+      style={[
+        styles.postCard,
+        { backgroundColor: colors.bgSecondary },
+        isFullScreen && styles.postCardFullscreen,
+      ]}
+    >
       <View style={styles.postHeader}>
         <TouchableOpacity
           style={styles.postHeaderUserLink}
           onPress={() =>
-            (navigation as any).navigate("Profile", { userId: post.userId })
+            (navigation as any).navigate("UserProfile", { userId: post.userId })
           }
         >
-          <Image
-            source={{
-              uri:
-                postUser?.avatarUrl ||
-                postUser?.photoURL ||
-                "https://via.placeholder.com/50x50",
-            }}
-            style={styles.postHeaderAvatar}
-          />
-          <Text style={styles.postUsernameHeader}>
+          {postUser?.avatarUrl || postUser?.photoURL ? (
+            <Image
+              source={{ uri: postUser?.avatarUrl || postUser?.photoURL }}
+              style={[
+                styles.postHeaderAvatar,
+                { borderColor: colors.borderColor },
+              ]}
+            />
+          ) : (
+            <Image
+              source={require("../../assets/placeholderImg.jpg")}
+              style={[
+                styles.postHeaderAvatar,
+                { borderColor: colors.borderColor },
+              ]}
+            />
+          )}
+          <Text
+            style={[styles.postUsernameHeader, { color: colors.textPrimary }]}
+          >
             {postUser?.username || "Unknown User"}
           </Text>
-          <Text style={styles.postTime}>
+          <Text style={[styles.postTime, { color: colors.textSecondary }]}>
             ·{" "}
             {post.createdAt?.toDate
               ? formatTimeAgo(post.createdAt.toDate())
@@ -332,18 +351,30 @@ export default function Post({
         {showOptions && (
           <TouchableWithoutFeedback onPress={() => setShowOptions(false)}>
             <View style={styles.optionsOverlay}>
-              <View style={styles.postOptionsMenu}>
+              <View
+                style={[
+                  styles.postOptionsMenu,
+                  {
+                    backgroundColor: colors.bgPrimary,
+                    borderColor: colors.borderColor,
+                  },
+                ]}
+              >
                 <TouchableOpacity onPress={handleCopyLink}>
-                  <Text>Copy Link</Text>
+                  <Text style={{ color: colors.textPrimary }}>Copy Link</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleEditClick}>
-                  <Text>Edit Description</Text>
+                  <Text style={{ color: colors.textPrimary }}>
+                    Edit Description
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleDeletePost}
                   disabled={isDeleting}
                 >
-                  <Text>{isDeleting ? "Deleting..." : "Delete Post"}</Text>
+                  <Text style={{ color: colors.danger }}>
+                    {isDeleting ? "Deleting..." : "Delete Post"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -358,12 +389,13 @@ export default function Post({
         }
       >
         <Image
-          source={{
-            uri:
-              post.imageUrl ||
-              "https://via.placeholder.com/600x400/CCCCCC/FFFFFF?text=No%20Image",
-          }}
+          source={
+            post.imageUrl
+              ? { uri: post.imageUrl }
+              : require("../../assets/placeholderImg.jpg")
+          }
           style={styles.postImage}
+          resizeMode="cover"
         />
         <Animated.View
           style={[
@@ -374,31 +406,35 @@ export default function Post({
             },
           ]}
         >
-          <Text style={styles.likeHeart}>❤️</Text>
+          <FontAwesome name="paw" size={80} color="#e74c3c" />
         </Animated.View>
       </TouchableOpacity>
 
       <View style={styles.postActions}>
         <TouchableOpacity onPress={handleLike} style={styles.postActionButton}>
-          <Text
-            style={[styles.actionIcon, { color: isLiked ? "red" : "gray" }]}
-          >
-            {isLiked ? "❤️" : "🤍"}
-          </Text>
+          <FontAwesome
+            name="paw"
+            size={22}
+            color={isLiked ? colors.brandSecondary : "gray"}
+          />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setShowLikes(true)}
           style={styles.postLikesCount}
         >
-          <Text>{likesCount} Paws</Text>
+          <Text style={{ color: colors.textSecondary }}>{likesCount} Paws</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setShowFullComments(true)}
           style={styles.postActionButton}
         >
-          <Text style={styles.actionIcon}>💬</Text>
+          <FontAwesome name="comment" size={20} color="gray" />
         </TouchableOpacity>
-        <Text style={styles.postCommentsCount}>{post.commentsCount || 0}</Text>
+        <Text
+          style={[styles.postCommentsCount, { color: colors.textSecondary }]}
+        >
+          {post.commentsCount || 0}
+        </Text>
       </View>
 
       <View style={styles.postCaption}>
@@ -425,10 +461,17 @@ export default function Post({
           </View>
         ) : (
           <View style={styles.captionLeft}>
-            <Text style={styles.postCaptionUsername}>
+            <Text
+              style={[
+                styles.postCaptionUsername,
+                { color: colors.brandPrimary },
+              ]}
+            >
               {postUser?.username + " •" || "Unknown User"}
             </Text>
-            <Text style={styles.postCaptionText}>
+            <Text
+              style={[styles.postCaptionText, { color: colors.textPrimary }]}
+            >
               {post.caption || "No caption."}
             </Text>
           </View>
@@ -452,7 +495,9 @@ export default function Post({
             onPress={() => setShowFullComments(true)}
             style={styles.showMoreCommentsBtn}
           >
-            <Text>Show more comments</Text>
+            <Text style={{ color: colors.textSecondary }}>
+              Show more comments
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -484,25 +529,37 @@ export default function Post({
 
       <Modal visible={showDeleteConfirm} transparent animationType="fade">
         <View style={styles.deleteConfirmModal}>
-          <View style={styles.deleteConfirmContent}>
-            <Text style={styles.deleteTitle}>Delete Post?</Text>
-            <Text style={styles.deleteText}>
+          <View
+            style={[
+              styles.deleteConfirmContent,
+              { backgroundColor: colors.bgPrimary },
+            ]}
+          >
+            <Text style={[styles.deleteTitle, { color: colors.textPrimary }]}>
+              Delete Post?
+            </Text>
+            <Text style={[styles.deleteText, { color: colors.textSecondary }]}>
               Are you sure you want to delete this post? This action cannot be
               undone.
             </Text>
             <View style={styles.deleteConfirmActions}>
               <TouchableOpacity
                 onPress={() => setShowDeleteConfirm(false)}
-                style={styles.cancelBtn}
+                style={[styles.cancelBtn, { borderColor: colors.borderColor }]}
               >
-                <Text>Cancel</Text>
+                <Text style={{ color: colors.textPrimary }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={confirmDelete}
-                style={styles.confirmDeleteBtn}
+                style={[
+                  styles.confirmDeleteBtn,
+                  { backgroundColor: colors.danger },
+                ]}
                 disabled={isDeleting}
               >
-                <Text>{isDeleting ? "Deleting..." : "Delete"}</Text>
+                <Text style={{ color: colors.bgPrimary }}>
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -518,11 +575,10 @@ const styles = StyleSheet.create({
     minHeight: 400,
     borderRadius: 12,
     flexDirection: "column" as "column",
-    backgroundColor: "#f0f0f0",
     marginTop: 20,
     paddingTop: 20,
     paddingBottom: 20,
-    paddingHorizontal: "5%",
+    paddingHorizontal: 16,
   },
   postCardFullscreen: {
     width: width * 0.95,
@@ -533,18 +589,17 @@ const styles = StyleSheet.create({
     flexDirection: "row" as "row",
     alignItems: "center" as "center",
     justifyContent: "space-between" as "space-between",
-    marginBottom: 10,
+    marginBottom: 4,
   },
   postHeaderUserLink: {
     flexDirection: "row" as "row",
     alignItems: "center" as "center",
   },
   postHeaderAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 1.5,
-    borderColor: "black",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.2,
   },
   postUsernameHeader: {
     fontWeight: "500" as "500",
@@ -552,7 +607,6 @@ const styles = StyleSheet.create({
   },
   postTime: {
     fontSize: 12,
-    color: "gray",
     marginLeft: 5,
   },
   copyLinkBtn: {
@@ -560,15 +614,12 @@ const styles = StyleSheet.create({
   },
   postOptionsTrigger: {
     fontSize: 20,
-    color: "#666",
   },
   optionsOverlay: {
     position: "absolute" as "absolute",
     top: 60,
     right: 20,
-    backgroundColor: "white",
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 5,
     padding: 10,
     zIndex: 10,
@@ -577,17 +628,18 @@ const styles = StyleSheet.create({
     // styles
   },
   postImageContainer: {
-    width: "90%",
+    width: "100%",
     height: 400,
     alignSelf: "center" as "center",
     position: "relative" as "relative",
     overflow: "hidden" as "hidden",
     borderRadius: 5,
-    marginVertical: 10,
+    marginVertical: 4,
   },
   postImage: {
     width: "100%",
     height: "100%",
+    alignSelf: "center",
   },
   likeAnimation: {
     position: "absolute" as "absolute",
@@ -597,22 +649,23 @@ const styles = StyleSheet.create({
   postActions: {
     flexDirection: "row" as "row",
     alignItems: "center" as "center",
-    marginVertical: 5,
+    marginVertical: 3,
   },
   postActionButton: {
-    marginRight: 10,
+    marginRight: 6,
+    padding: 4,
   },
   postLikesCount: {
     fontSize: 14,
-    color: "#666",
-    marginRight: 10,
+    marginRight: 6,
   },
   postCommentsCount: {
     fontSize: 14,
-    color: "#666",
   },
   postCaption: {
-    marginVertical: 5,
+    marginVertical: 2,
+    // prevent caption text from overflowing the card
+    paddingHorizontal: 4,
   },
   captionLeft: {
     flexDirection: "row" as "row",
@@ -621,14 +674,14 @@ const styles = StyleSheet.create({
   postCaptionUsername: {
     fontWeight: "500" as "500",
     marginRight: 5,
-    color: "#007bff",
   },
   postCaptionText: {
     fontSize: 14,
+    flexShrink: 1,
+    flexWrap: "wrap" as "wrap",
   },
   captionInput: {
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 5,
     padding: 10,
     minHeight: 60,
@@ -639,11 +692,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   postCommentSection: {
-    marginVertical: 10,
+    marginVertical: 4,
   },
   showMoreCommentsBtn: {
     fontSize: 12,
-    color: "#666",
     marginTop: -5,
   },
   comment: {
@@ -658,7 +710,6 @@ const styles = StyleSheet.create({
   },
   loginPrompt: {
     fontSize: 12,
-    color: "#777",
     textAlign: "center" as "center",
     marginVertical: 10,
   },
@@ -669,7 +720,6 @@ const styles = StyleSheet.create({
     alignItems: "center" as "center",
   },
   deleteConfirmContent: {
-    backgroundColor: "white",
     padding: 20,
     borderRadius: 8,
     maxWidth: 400,
@@ -691,23 +741,19 @@ const styles = StyleSheet.create({
   cancelBtn: {
     padding: 10,
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 4,
   },
   confirmDeleteBtn: {
     padding: 10,
-    backgroundColor: "#e74c3c",
     borderRadius: 4,
   },
   likeHeart: {
     fontSize: 80,
-    color: "#e74c3c",
   },
   actionIcon: {
     fontSize: 24,
   },
   optionsText: {
     fontSize: 20,
-    color: "#666",
   },
 });

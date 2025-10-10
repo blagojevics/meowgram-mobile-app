@@ -101,10 +101,22 @@ const PostDetailScreen: React.FC = () => {
           id: doc.id,
           ...doc.data(),
         })) as Comment[];
+
+        const getMs = (t: any) => {
+          if (!t) return 0;
+          if (t.toDate) return t.toDate().getTime();
+          if (t.seconds) return t.seconds * 1000;
+          if (typeof t === "number") return t > 1e12 ? t : t * 1000;
+          if (typeof t === "string") {
+            const n = Date.parse(t);
+            return isNaN(n) ? 0 : n;
+          }
+          if (t instanceof Date) return t.getTime();
+          return 0;
+        };
+
         setComments(
-          commentsData.sort(
-            (a, b) => b.createdAt?.toDate?.() - a.createdAt?.toDate?.() || 0
-          )
+          commentsData.sort((a, b) => getMs(b.createdAt) - getMs(a.createdAt))
         );
       }
     );
@@ -259,9 +271,7 @@ const PostDetailScreen: React.FC = () => {
                 {post.username || "Unknown User"}
               </Text>
               <Text style={{ color: "#666", fontSize: 12 }}>
-                {post.createdAt?.toDate
-                  ? timeFormat(post.createdAt.toDate())
-                  : "Just now"}
+                {post.createdAt ? timeFormat(post.createdAt) : "Just now"}
               </Text>
             </View>
             {user && user.uid === post.userId && (
@@ -384,8 +394,8 @@ const PostDetailScreen: React.FC = () => {
                       {comment.authorUsername}
                     </Text>
                     <Text style={{ color: "#666", fontSize: 12 }}>
-                      {comment.createdAt?.toDate
-                        ? timeFormat(comment.createdAt.toDate())
+                      {comment.createdAt
+                        ? timeFormat(comment.createdAt)
                         : "Just now"}
                     </Text>
                   </View>

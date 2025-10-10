@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, Alert, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { auth, db } from "../config/firebase";
+import { useTheme } from "../contexts/ThemeContext";
 import {
   signOut,
   sendPasswordResetEmail,
@@ -19,6 +20,7 @@ const googleProvider = new GoogleAuthProvider();
 export default function SettingsScreen() {
   const [status, setStatus] = useState("");
   const navigation = useNavigation();
+  const { colors } = useTheme();
 
   const handleLogout = async () => {
     try {
@@ -177,15 +179,30 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.bgPrimary }]}
+    >
       <View style={styles.header}>
-        <Text style={styles.title}>Account Settings</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Account Settings
+        </Text>
       </View>
 
       <View style={styles.content}>
         <View style={styles.actionsContainer}>
-          <TouchableOpacity style={styles.button} onPress={handlePasswordReset}>
-            <Text style={styles.buttonText}>Reset Password</Text>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              {
+                backgroundColor: colors.bgSecondary,
+                borderColor: colors.borderColor,
+              },
+            ]}
+            onPress={handlePasswordReset}
+          >
+            <Text style={[styles.buttonText, { color: colors.textPrimary }]}>
+              Reset Password
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -206,8 +223,18 @@ export default function SettingsScreen() {
         </View>
 
         {status ? (
-          <View style={styles.statusContainer}>
-            <Text style={styles.statusText}>{status}</Text>
+          <View
+            style={[
+              styles.statusContainer,
+              {
+                backgroundColor: colors.bgSecondary,
+                borderColor: colors.borderColor,
+              },
+            ]}
+          >
+            <Text style={[styles.statusText, { color: colors.textSecondary }]}>
+              {status}
+            </Text>
           </View>
         ) : null}
       </View>
@@ -218,7 +245,6 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   header: {
     paddingHorizontal: 20,
@@ -240,7 +266,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   button: {
-    backgroundColor: "#f0f0f0",
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -253,11 +278,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
   },
   buttonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
   },
   logoutButton: {
     backgroundColor: "#007AFF",
@@ -271,14 +296,11 @@ const styles = StyleSheet.create({
   statusContainer: {
     marginTop: 32,
     padding: 16,
-    backgroundColor: "#f8f8f8",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#e1e1e1",
   },
   statusText: {
     fontSize: 14,
-    color: "#666",
     textAlign: "center",
   },
 });

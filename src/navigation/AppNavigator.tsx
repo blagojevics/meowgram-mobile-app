@@ -5,7 +5,8 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { BackHandler } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
-import { View, ActivityIndicator } from "react-native";
+import { useTheme } from "../contexts/ThemeContext";
+import { View, ActivityIndicator, Platform } from "react-native";
 import { useEffect, useState } from "react";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../config/firebase";
@@ -25,7 +26,7 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   MainTabs: undefined;
-  Profile: { userId: string };
+  UserProfile: { userId: string };
   AddPost: undefined;
   Settings: undefined;
   PostDetail: { postId: string };
@@ -41,6 +42,7 @@ export type MainTabParamList = {
 
 const MainTabs: React.FC = () => {
   const { user } = useAuth();
+  const { colors } = useTheme();
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Get unread notifications count
@@ -65,12 +67,26 @@ const MainTabs: React.FC = () => {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#fff",
-          borderTopColor: "#ddd",
+          backgroundColor: colors.bgPrimary,
+          borderTopColor: colors.borderColor,
           borderTopWidth: 1,
+          // Use vertical padding to center content and avoid icons being too low
+          // lowered a tiny bit for a tighter bottom spacing
+          paddingVertical: Platform.OS === "ios" ? 6 : 4,
         },
-        tabBarActiveTintColor: "#007AFF",
-        tabBarInactiveTintColor: "#666",
+        // Ensure each item is centered vertically
+        tabBarItemStyle: {
+          paddingTop: 1,
+          paddingBottom: 1,
+        },
+        tabBarLabelStyle: {
+          marginTop: 0,
+          // tiny reduction so labels sit a touch lower visually
+          marginBottom: Platform.OS === "ios" ? 1 : 0,
+          fontSize: 12,
+        },
+        tabBarActiveTintColor: colors.brandPrimary,
+        tabBarInactiveTintColor: colors.textMuted,
       }}
     >
       <Tab.Screen
@@ -127,13 +143,21 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const AppNavigatorContent: React.FC = () => {
   const { user, loading } = useAuth();
+  const { colors } = useTheme();
 
   console.log("AppNavigator - user:", user, "loading:", loading);
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: colors.bgPrimary,
+        }}
+      >
+        <ActivityIndicator size="large" color={colors.brandPrimary} />
       </View>
     );
   }
@@ -145,7 +169,7 @@ const AppNavigatorContent: React.FC = () => {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="MainTabs" component={MainTabs} />
           <Stack.Screen
-            name="Profile"
+            name="UserProfile"
             component={ProfileScreen}
             options={{
               gestureEnabled: true,

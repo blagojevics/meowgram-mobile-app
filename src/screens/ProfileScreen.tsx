@@ -1,3 +1,4 @@
+// Editor refresh: no-op comment to nudge diagnostics
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -9,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
@@ -32,6 +34,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../contexts/AuthContext";
+import { useTheme } from "../contexts/ThemeContext";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import CommentList from "../components/CommentList";
 import CommentInput from "../components/CommentInput";
@@ -40,10 +43,10 @@ import FollowListModal from "../components/FollowListModal";
 import EditProfileModal from "../components/EditProfileModal";
 import timeFormat from "../config/timeFormat";
 
-type ProfileScreenRouteProp = RouteProp<RootStackParamList, "Profile">;
+type ProfileScreenRouteProp = RouteProp<RootStackParamList, "UserProfile">;
 type ProfileScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  "Profile"
+  "UserProfile"
 >;
 
 interface Post {
@@ -76,6 +79,8 @@ const ProfileScreen: React.FC = () => {
   const route = useRoute<ProfileScreenRouteProp>();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const { user: authUser } = useAuth();
+  const { colors } = useTheme();
+  const windowDims = useWindowDimensions();
 
   const userId = route.params?.userId || authUser?.uid;
   const isOwnProfile = authUser && authUser.uid === userId;
@@ -263,7 +268,11 @@ const ProfileScreen: React.FC = () => {
       onPress={() => setSelectedPost(item)}
     >
       <Image
-        source={{ uri: item.imageUrl }}
+        source={
+          item.imageUrl
+            ? { uri: item.imageUrl }
+            : require("../../assets/placeholderImg.jpg")
+        }
         style={{ width: "100%", height: "100%" }}
         resizeMode="cover"
       />
@@ -272,31 +281,54 @@ const ProfileScreen: React.FC = () => {
 
   if (loadingProfile || loadingPosts) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={{ marginTop: 10 }}>Loading profile...</Text>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: colors.bgPrimary,
+        }}
+      >
+        <ActivityIndicator size="large" color={colors.brandPrimary} />
+        <Text style={{ marginTop: 10, color: colors.textSecondary }}>
+          Loading profile...
+        </Text>
       </View>
     );
   }
 
   if (errorProfile) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text style={{ color: "red" }}>Error: {errorProfile}</Text>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: colors.bgPrimary,
+        }}
+      >
+        <Text style={{ color: colors.danger }}>Error: {errorProfile}</Text>
       </View>
     );
   }
 
   if (!profileData) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Profile not found.</Text>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: colors.bgPrimary,
+        }}
+      >
+        <Text style={{ color: colors.textPrimary }}>Profile not found.</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
       {/* Back Button Header - Only show when navigating to another user's profile */}
       {route.params?.userId && (
         <View
@@ -306,8 +338,8 @@ const ProfileScreen: React.FC = () => {
             paddingHorizontal: 15,
             paddingVertical: 10,
             borderBottomWidth: 1,
-            borderBottomColor: "#eee",
-            backgroundColor: "#fff",
+            borderBottomColor: colors.borderColor,
+            backgroundColor: colors.bgPrimary,
           }}
         >
           <TouchableOpacity
@@ -317,9 +349,17 @@ const ProfileScreen: React.FC = () => {
               marginRight: 15,
             }}
           >
-            <Text style={{ fontSize: 18, color: "#007AFF" }}>← Back</Text>
+            <Text style={{ fontSize: 18, color: colors.brandPrimary }}>
+              ← Back
+            </Text>
           </TouchableOpacity>
-          <Text style={{ fontSize: 18, fontWeight: "600" }}>
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "600",
+              color: colors.textPrimary,
+            }}
+          >
             {profileData.username || "Profile"}
           </Text>
         </View>
@@ -334,23 +374,46 @@ const ProfileScreen: React.FC = () => {
             marginBottom: 20,
           }}
         >
-          <Image
-            source={{
-              uri: profileData.avatarUrl || "https://via.placeholder.com/100",
-            }}
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: 40,
-              marginRight: 20,
-            }}
-          />
+          {profileData.avatarUrl ? (
+            <Image
+              source={{ uri: profileData.avatarUrl }}
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                marginRight: 20,
+              }}
+            />
+          ) : (
+            <Image
+              source={require("../../assets/placeholderImg.jpg")}
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                marginRight: 20,
+              }}
+            />
+          )}
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 5 }}>
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: "bold",
+                marginBottom: 5,
+                color: colors.textPrimary,
+              }}
+            >
               {profileData.username || "No Username"}
             </Text>
             {profileData.displayName && (
-              <Text style={{ fontSize: 16, color: "#666", marginBottom: 10 }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  color: colors.textSecondary,
+                  marginBottom: 10,
+                }}
+              >
                 {profileData.displayName}
               </Text>
             )}
@@ -358,31 +421,41 @@ const ProfileScreen: React.FC = () => {
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <TouchableOpacity
                   style={{
-                    backgroundColor: "#f0f0f0",
+                    backgroundColor: colors.bgSecondary,
                     paddingHorizontal: 20,
                     paddingVertical: 8,
                     borderRadius: 6,
                   }}
                   onPress={() => setShowEditModal(true)}
                 >
-                  <Text style={{ fontWeight: "600" }}>Edit Profile</Text>
+                  <Text
+                    style={{ fontWeight: "600", color: colors.textPrimary }}
+                  >
+                    Edit Profile
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={{
-                    backgroundColor: "#f0f0f0",
+                    backgroundColor: colors.bgSecondary,
                     paddingHorizontal: 15,
                     paddingVertical: 8,
                     borderRadius: 6,
                   }}
                   onPress={() => navigation.navigate("Settings")}
                 >
-                  <Text style={{ fontWeight: "600" }}>⚙️</Text>
+                  <Text
+                    style={{ fontWeight: "600", color: colors.textPrimary }}
+                  >
+                    ⚙️
+                  </Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity
                 style={{
-                  backgroundColor: isFollowing ? "#f0f0f0" : "#007AFF",
+                  backgroundColor: isFollowing
+                    ? colors.bgSecondary
+                    : colors.brandPrimary,
                   paddingHorizontal: 20,
                   paddingVertical: 8,
                   borderRadius: 6,
@@ -392,7 +465,7 @@ const ProfileScreen: React.FC = () => {
               >
                 <Text
                   style={{
-                    color: isFollowing ? "#000" : "#fff",
+                    color: isFollowing ? colors.textPrimary : colors.bgPrimary,
                     fontWeight: "600",
                   }}
                 >
@@ -409,7 +482,13 @@ const ProfileScreen: React.FC = () => {
 
         {/* Bio */}
         {profileData.bio && (
-          <Text style={{ marginBottom: 15, lineHeight: 20 }}>
+          <Text
+            style={{
+              marginBottom: 15,
+              lineHeight: 20,
+              color: colors.textPrimary,
+            }}
+          >
             {profileData.bio.split("\n").map((line, index) => (
               <Text key={index}>
                 {line}
@@ -431,25 +510,43 @@ const ProfileScreen: React.FC = () => {
             style={{ alignItems: "center" }}
             onPress={() => setModalType("followers")}
           >
-            <Text style={{ fontSize: 18, fontWeight: "bold" }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                color: colors.textPrimary,
+              }}
+            >
               {profileData.followersCount || 0}
             </Text>
-            <Text style={{ color: "#666" }}>Followers</Text>
+            <Text style={{ color: colors.textSecondary }}>Followers</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={{ alignItems: "center" }}
             onPress={() => setModalType("following")}
           >
-            <Text style={{ fontSize: 18, fontWeight: "bold" }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                color: colors.textPrimary,
+              }}
+            >
               {profileData.followingCount || 0}
             </Text>
-            <Text style={{ color: "#666" }}>Following</Text>
+            <Text style={{ color: colors.textSecondary }}>Following</Text>
           </TouchableOpacity>
           <View style={{ alignItems: "center" }}>
-            <Text style={{ fontSize: 18, fontWeight: "bold" }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                color: colors.textPrimary,
+              }}
+            >
               {profilePosts.length}
             </Text>
-            <Text style={{ color: "#666" }}>Posts</Text>
+            <Text style={{ color: colors.textSecondary }}>Posts</Text>
           </View>
         </View>
       </View>
@@ -463,123 +560,156 @@ const ProfileScreen: React.FC = () => {
         contentContainerStyle={{ padding: 10 }}
         ListEmptyComponent={
           <View style={{ alignItems: "center", padding: 50 }}>
-            <Text style={{ color: "#666" }}>No posts yet.</Text>
+            <Text style={{ color: colors.textSecondary }}>No posts yet.</Text>
           </View>
         }
       />
 
-      {/* Post Detail Modal */}
+      {/* Post Detail Modal - full image with bottom sheet */}
       {selectedPost && (
         <Modal
           visible={!!selectedPost}
           animationType="fade"
-          transparent={true}
+          transparent
           onRequestClose={() => setSelectedPost(null)}
         >
-          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.9)" }}>
+          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.95)" }}>
             <TouchableOpacity
-              style={{ position: "absolute", top: 50, right: 20, zIndex: 10 }}
+              accessibilityLabel="Close post"
               onPress={() => setSelectedPost(null)}
+              style={{
+                position: "absolute",
+                top: 30,
+                right: 12,
+                zIndex: 30,
+                backgroundColor: "rgba(255,255,255,0.95)",
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                justifyContent: "center",
+                alignItems: "center",
+                shadowColor: "#000",
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 6,
+              }}
             >
-              <Text style={{ color: "white", fontSize: 24 }}>✕</Text>
+              <Text style={{ color: colors.textPrimary, fontSize: 20 }}>×</Text>
             </TouchableOpacity>
 
-            <View style={{ flex: 1, flexDirection: "row" }}>
-              <View
-                style={{
-                  flex: 1,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Image
-                  source={{ uri: selectedPost.imageUrl }}
-                  style={{ width: "100%", height: "100%" }}
-                  resizeMode="contain"
-                />
-              </View>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Image
+                source={
+                  selectedPost?.imageUrl
+                    ? { uri: selectedPost.imageUrl }
+                    : require("../../assets/placeholderImg.jpg")
+                }
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="cover"
+              />
+            </View>
 
-              <View
-                style={{
-                  width: 300,
-                  backgroundColor: "#fff",
-                  padding: 15,
-                  flexDirection: "column",
-                }}
-              >
-                {/* Post Header */}
+            <View
+              style={{
+                width: "100%",
+                backgroundColor: colors.bgPrimary,
+                borderTopLeftRadius: 14,
+                borderTopRightRadius: 14,
+                paddingTop: 10,
+                paddingHorizontal: 12,
+                maxHeight: windowDims.height * 0.45,
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+              }}
+            >
+              <SafeAreaView style={{ flex: 1 }}>
+                <View
+                  style={{
+                    width: 36,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colors.borderLight,
+                    alignSelf: "center",
+                    marginBottom: 10,
+                  }}
+                />
+
                 <View
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    marginBottom: 10,
+                    marginBottom: 8,
                   }}
                 >
-                  <Image
-                    source={{
-                      uri:
-                        postUserData?.avatarUrl ||
-                        "https://via.placeholder.com/40",
-                    }}
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
-                      marginRight: 10,
-                    }}
-                  />
-                  <Text style={{ fontWeight: "bold" }}>
-                    {postUserData?.username || "Unknown"}
-                  </Text>
+                  {postUserData?.avatarUrl ? (
+                    <Image
+                      source={{ uri: postUserData.avatarUrl }}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        marginRight: 10,
+                      }}
+                    />
+                  ) : (
+                    <Image
+                      source={require("../../assets/placeholderImg.jpg")}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        marginRight: 10,
+                      }}
+                    />
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{ fontWeight: "700", color: colors.textPrimary }}
+                    >
+                      {postUserData?.username || "Unknown"}
+                    </Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                      {timeFormat(selectedPost?.createdAt)}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() =>
+                      selectedPost && handleLikeToggle(selectedPost)
+                    }
+                    style={{ padding: 8 }}
+                  >
+                    <Text style={{ fontSize: 18 }}>🐾</Text>
+                  </TouchableOpacity>
                 </View>
 
-                {/* Caption */}
-                {selectedPost.caption && (
-                  <Text style={{ marginBottom: 15 }}>
+                {selectedPost?.caption ? (
+                  <Text style={{ marginBottom: 8, color: colors.textPrimary }}>
                     {selectedPost.caption}
                   </Text>
-                )}
+                ) : null}
 
-                {/* Comments */}
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, marginBottom: 6 }}>
                   <CommentList
-                    postId={selectedPost.id}
+                    postId={selectedPost!.id}
                     currentUser={authUser}
-                    isPostOwner={selectedPost.userId === authUser?.uid}
-                    post={selectedPost}
+                    isPostOwner={selectedPost!.userId === authUser?.uid}
+                    post={selectedPost!}
                   />
                 </View>
 
-                {/* Comment Input */}
                 <CommentInput
-                  postId={selectedPost.id}
+                  postId={selectedPost!.id}
                   currentUser={authUser}
-                  post={selectedPost}
+                  post={selectedPost!}
                 />
-
-                {/* Actions */}
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    marginTop: 10,
-                  }}
-                >
-                  <TouchableOpacity
-                    onPress={() => handleLikeToggle(selectedPost)}
-                    style={{ flexDirection: "row", alignItems: "center" }}
-                  >
-                    <Text style={{ fontSize: 18, marginRight: 5 }}>🐾</Text>
-                    <Text>{selectedPost.likesCount || 0}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setShowLikesModal(true)}
-                    style={{ flexDirection: "row", alignItems: "center" }}
-                  >
-                    <Text>View Likes</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              </SafeAreaView>
             </View>
           </View>
         </Modal>

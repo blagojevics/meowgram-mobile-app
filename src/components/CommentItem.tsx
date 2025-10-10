@@ -115,13 +115,27 @@ const CommentItem: React.FC<CommentItemProps> = ({
     if (!timestamp?.toDate) return "";
     const now = new Date();
     const time = timestamp.toDate();
-    const diffInSeconds = Math.floor((now.getTime() - time.getTime()) / 1000);
+    let diff = Math.floor((now.getTime() - time.getTime()) / 1000); // seconds
 
-    if (diffInSeconds < 60) return "now";
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d`;
-    return time.toLocaleDateString();
+    if (diff < 60) return "now";
+
+    const units = [
+      { label: "y", sec: 31536000 },
+      { label: "mo", sec: 2592000 },
+      { label: "w", sec: 604800 },
+      { label: "d", sec: 86400 },
+      { label: "h", sec: 3600 },
+      { label: "m", sec: 60 },
+    ];
+
+    for (const u of units) {
+      const val = Math.floor(diff / u.sec);
+      if (val > 0) {
+        return `${val}${u.label} ago`;
+      }
+    }
+
+    return "now";
   };
 
   const handleDelete = () => {
@@ -142,15 +156,17 @@ const CommentItem: React.FC<CommentItemProps> = ({
   return (
     <View style={styles.comment}>
       <TouchableOpacity style={styles.commentUserLink}>
-        <Image
-          source={{
-            uri:
-              author?.avatarUrl ||
-              author?.photoURL ||
-              "https://via.placeholder.com/32",
-          }}
-          style={styles.commentAvatar}
-        />
+        {author?.avatarUrl || author?.photoURL ? (
+          <Image
+            source={{ uri: author?.avatarUrl || author?.photoURL }}
+            style={styles.commentAvatar}
+          />
+        ) : (
+          <Image
+            source={require("../../assets/placeholderImg.jpg")}
+            style={styles.commentAvatar}
+          />
+        )}
         <View style={styles.commentContent}>
           <Text style={styles.commentUsername}>
             {author?.username || "Unknown"}
@@ -194,14 +210,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     paddingVertical: 8,
-    paddingHorizontal: 16,
-    gap: 8,
+    paddingHorizontal: 0,
+    gap: 4,
   },
   commentUserLink: {
     flexDirection: "row",
     alignItems: "flex-start",
     flex: 1,
-    gap: 8,
+    gap: 4,
   },
   commentAvatar: {
     width: 32,
@@ -227,7 +243,7 @@ const styles = StyleSheet.create({
   commentActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 4,
     marginTop: 4,
   },
   likeButton: {

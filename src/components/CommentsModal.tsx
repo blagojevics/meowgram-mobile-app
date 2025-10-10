@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import CommentList from "./CommentList";
 import CommentInput from "./CommentInput";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface CommentsModalProps {
   isOpen: boolean;
@@ -27,6 +28,8 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
   isPostOwner,
   post,
 }) => {
+  const { colors } = useTheme();
+
   if (!isOpen) return null;
 
   return (
@@ -36,12 +39,20 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.header}>
+      <View
+        style={[styles.modalContainer, { backgroundColor: colors.bgPrimary }]}
+      >
+        <View
+          style={[styles.header, { borderBottomColor: colors.borderColor }]}
+        >
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeText}>✕</Text>
+            <Text style={[styles.closeText, { color: colors.textSecondary }]}>
+              ✕
+            </Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Comments</Text>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>
+            Comments
+          </Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -53,7 +64,15 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
         />
 
         {currentUser && (
-          <View style={styles.inputContainer}>
+          <View
+            style={[
+              styles.inputContainer,
+              {
+                borderTopColor: colors.borderColor,
+                backgroundColor: colors.bgPrimary,
+              },
+            ]}
+          >
             <CommentInput
               postId={postId}
               currentUser={currentUser}
@@ -69,7 +88,6 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   header: {
     flexDirection: "row",
@@ -78,27 +96,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
   },
   closeButton: {
     padding: 8,
   },
   closeText: {
     fontSize: 18,
-    color: "#666",
   },
   title: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
   },
   placeholder: {
     width: 40,
   },
   inputContainer: {
     borderTopWidth: 1,
-    borderTopColor: "#eee",
-    backgroundColor: "#fff",
   },
 });
 

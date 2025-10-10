@@ -6,10 +6,11 @@ import {
   Dimensions,
   Text,
   TouchableOpacity,
+  Image,
 } from "react-native";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/AppNavigator";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../contexts/AuthContext";
+import { useTheme } from "../contexts/ThemeContext";
 import Post from "../components/Post";
 import {
   collection,
@@ -22,24 +23,15 @@ import {
 import { db } from "../config/firebase";
 
 const { width } = Dimensions.get("window");
-
-type Props = NativeStackScreenProps<RootStackParamList, "Home">;
+type Props = any;
 
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme, colors } = useTheme();
   const [posts, setPosts] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userDoc, setUserDoc] = useState<any>(null);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      // Navigation will be handled automatically by AppNavigator
-    } catch (err) {
-      console.error("Logout failed:", err);
-    }
-  };
 
   const currentUser = user
     ? {
@@ -50,13 +42,11 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       }
     : null;
 
-  // Fetch user document when user changes
   useEffect(() => {
     if (!user) {
       setUserDoc(null);
       return;
     }
-
     const fetchUserDoc = async () => {
       try {
         const userDocRef = doc(db, "users", user.uid);
@@ -64,80 +54,42 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         if (userDocSnap.exists()) {
           setUserDoc(userDocSnap.data());
         } else {
-          console.log("User document not found");
           setUserDoc(null);
         }
       } catch (error) {
-        console.error("Error fetching user document:", error);
         setUserDoc(null);
       }
     };
-
     fetchUserDoc();
   }, [user]);
 
   useEffect(() => {
-    console.log("HomeScreen useEffect triggered, user:", user);
-    if (!user) {
-      console.log("No user, returning");
-      return;
-    }
-
+    if (!user) return;
     setLoadingPosts(true);
     setError(null);
-
-    console.log("Setting up Firestore listener...");
-
-    // Fetch posts from Firestore
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(
       q,
       (querySnapshot) => {
-        console.log(
-          "Firestore snapshot received, docs count:",
-          querySnapshot.docs.length
-        );
         const postsData = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-        console.log("Posts data:", postsData);
         setPosts(postsData);
         setLoadingPosts(false);
       },
-      (err) => {
-        console.error("Error fetching posts:", err);
+      () => {
         setError("Failed to load posts");
         setLoadingPosts(false);
       }
     );
-
-    return () => {
-      console.log("Unsubscribing from Firestore listener");
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [user]);
 
   if (!user || !userDoc) {
     return (
       <View style={styles.container}>
         <Text>Loading user data...</Text>
-      </View>
-    );
-  }
-
-  if (loadingPosts) {
-    return (
-      <View style={styles.container}>
-        <Text>Loading posts from your feed...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <Text>Error: {error}</Text>
       </View>
     );
   }
@@ -150,65 +102,75 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     );
   }
 
-  return (
-    <View style={styles.container}>
-      {/* Header - Mobile-focused */}
-      <View style={styles.header}>
-        <Text style={styles.logo}>Meowgram</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+  // The header component for FlatList (will scroll away!)
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <Image
+        source={require("../../assets/logohomepage.png")}
+        style={[styles.logoImageLarge, { tintColor: colors.logoColor }]}
+        resizeMode="contain"
+      />
+      <TouchableOpacity
+        style={[
+          styles.themeToggle,
+          {
+            backgroundColor: colors.bgSecondary,
+            borderColor: colors.borderColor,
+          },
+        ]}
+        onPress={toggleTheme}
+      >
+        <Text style={{ fontSize: 18, color: colors.textPrimary }}>
+          {theme === "light" ? "☾" : "☀️"}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
 
-      {/* Posts Feed */}
+  return (
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.bgPrimary }]}
+      edges={["top"]}
+    >
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <Post post={item} currentUser={currentUser} />
         )}
+        ListHeaderComponent={renderHeader} // <-- Header scrolls away!
         contentContainerStyle={styles.postsFeed}
         showsVerticalScrollIndicator={false}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
     width: width > 550 ? width * 0.5 : width,
     alignSelf: "center",
   },
   header: {
-    height: 50,
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
+    height: 44,
     paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    marginBottom: 0,
   },
-  headerButtons: {
-    flexDirection: "row",
+  logoImageLarge: {
+    width: 100,
+    height: 44,
+  },
+  themeToggle: {
+    borderWidth: 1,
+    borderRadius: 18,
+    width: 36,
+    height: 36,
     alignItems: "center",
-  },
-  logo: {
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  logoutButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: "#007AFF",
-    borderRadius: 5,
-  },
-  logoutText: {
-    color: "#fff",
-    fontWeight: "600",
+    justifyContent: "center",
   },
   postsFeed: {
     paddingHorizontal: width < 550 ? 10 : 0,
