@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   FlatList,
+  Image,
 } from "react-native";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../config/firebase";
@@ -46,6 +47,14 @@ const LikesListModal: React.FC<LikesListModalProps> = ({
 
   const renderUser = ({ item }: { item: any }) => (
     <View style={[styles.userItem, { borderBottomColor: colors.borderColor }]}>
+      <Image
+        source={
+          item.avatarUrl
+            ? { uri: item.avatarUrl }
+            : require("../../assets/placeholderImg.jpg")
+        }
+        style={styles.avatar}
+      />
       <Text style={[styles.username, { color: colors.textPrimary }]}>
         {item.username || "Unknown User"}
       </Text>
@@ -133,9 +142,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   username: {
     fontSize: 16,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    marginRight: 8,
   },
   emptyText: {
     textAlign: "center",

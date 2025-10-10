@@ -73,7 +73,11 @@ interface UserProfile {
 
 const { width } = Dimensions.get("window");
 const numColumns = 3;
-const imageSize = (width - 40) / numColumns - 10;
+const HORIZONTAL_PADDING = 20; // match profile header padding
+const GRID_GAP = 8;
+const imageSize = Math.floor(
+  (width - HORIZONTAL_PADDING * 2 - GRID_GAP * (numColumns - 1)) / numColumns
+);
 
 const ProfileScreen: React.FC = () => {
   const route = useRoute<ProfileScreenRouteProp>();
@@ -100,6 +104,7 @@ const ProfileScreen: React.FC = () => {
   );
   const [postUserData, setPostUserData] = useState<UserProfile | null>(null);
   const [showLikesModal, setShowLikesModal] = useState(false);
+  const [isUpdatingLike, setIsUpdatingLike] = useState(false);
 
   // Load user profile data
   useEffect(() => {
@@ -240,6 +245,8 @@ const ProfileScreen: React.FC = () => {
     const postRef = doc(db, "posts", post.id);
     const alreadyLiked = post.likedByUsers?.includes(authUser.uid);
     try {
+      if (isUpdatingLike) return;
+      setIsUpdatingLike(true);
       if (alreadyLiked) {
         await updateDoc(postRef, {
           likedByUsers: arrayRemove(authUser.uid),
@@ -253,6 +260,8 @@ const ProfileScreen: React.FC = () => {
       }
     } catch (err) {
       console.error("Error toggling like:", err);
+    } finally {
+      setIsUpdatingLike(false);
     }
   };
 
@@ -261,7 +270,8 @@ const ProfileScreen: React.FC = () => {
       style={{
         width: imageSize,
         height: imageSize,
-        margin: 5,
+        marginRight: GRID_GAP,
+        marginBottom: GRID_GAP,
         borderRadius: 8,
         overflow: "hidden",
       }}
@@ -451,31 +461,40 @@ const ProfileScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity
-                style={{
-                  backgroundColor: isFollowing
-                    ? colors.bgSecondary
-                    : colors.brandPrimary,
-                  paddingHorizontal: 20,
-                  paddingVertical: 8,
-                  borderRadius: 6,
-                }}
-                onPress={handleFollowToggle}
-                disabled={loadingFollow}
-              >
-                <Text
+              <View style={{ flexDirection: "row" }}>
+                <TouchableOpacity
                   style={{
-                    color: isFollowing ? colors.textPrimary : colors.bgPrimary,
-                    fontWeight: "600",
+                    backgroundColor: isFollowing
+                      ? colors.bgSecondary
+                      : colors.brandPrimary,
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    borderRadius: 6,
+                    maxWidth: 130,
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
+                  onPress={handleFollowToggle}
+                  disabled={loadingFollow}
                 >
-                  {loadingFollow
-                    ? "Loading..."
-                    : isFollowing
-                    ? "Following"
-                    : "Follow"}
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={{
+                      color: isFollowing
+                        ? colors.textPrimary
+                        : colors.bgPrimary,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {loadingFollow
+                      ? "Loading..."
+                      : isFollowing
+                      ? "Following"
+                      : "Follow"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </View>
@@ -506,6 +525,18 @@ const ProfileScreen: React.FC = () => {
             marginBottom: 20,
           }}
         >
+          <View style={{ alignItems: "center" }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                color: colors.textPrimary,
+              }}
+            >
+              {profilePosts.length}
+            </Text>
+            <Text style={{ color: colors.textSecondary }}>Posts</Text>
+          </View>
           <TouchableOpacity
             style={{ alignItems: "center" }}
             onPress={() => setModalType("followers")}
@@ -536,18 +567,6 @@ const ProfileScreen: React.FC = () => {
             </Text>
             <Text style={{ color: colors.textSecondary }}>Following</Text>
           </TouchableOpacity>
-          <View style={{ alignItems: "center" }}>
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "bold",
-                color: colors.textPrimary,
-              }}
-            >
-              {profilePosts.length}
-            </Text>
-            <Text style={{ color: colors.textSecondary }}>Posts</Text>
-          </View>
         </View>
       </View>
 
@@ -557,7 +576,11 @@ const ProfileScreen: React.FC = () => {
         renderItem={renderPostItem}
         keyExtractor={(item) => item.id}
         numColumns={numColumns}
-        contentContainerStyle={{ padding: 10 }}
+        contentContainerStyle={{
+          paddingHorizontal: HORIZONTAL_PADDING,
+          paddingTop: 6,
+          paddingBottom: 20,
+        }}
         ListEmptyComponent={
           <View style={{ alignItems: "center", padding: 50 }}>
             <Text style={{ color: colors.textSecondary }}>No posts yet.</Text>

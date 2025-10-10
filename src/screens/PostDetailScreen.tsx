@@ -70,6 +70,7 @@ const PostDetailScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
+  const [isUpdatingLike, setIsUpdatingLike] = useState(false);
 
   // Load post data
   useEffect(() => {
@@ -131,6 +132,8 @@ const PostDetailScreen: React.FC = () => {
     const alreadyLiked = post.likedByUsers?.includes(user.uid);
 
     try {
+      if (isUpdatingLike) return;
+      setIsUpdatingLike(true);
       if (alreadyLiked) {
         await updateDoc(postRef, {
           likedByUsers: arrayRemove(user.uid),
@@ -163,6 +166,8 @@ const PostDetailScreen: React.FC = () => {
     } catch (err) {
       console.error("Error toggling like:", err);
       Alert.alert("Error", "Failed to update like");
+    } finally {
+      setIsUpdatingLike(false);
     }
   };
 
@@ -256,9 +261,11 @@ const PostDetailScreen: React.FC = () => {
             }}
           >
             <Image
-              source={{
-                uri: post.userAvatar || "https://via.placeholder.com/40",
-              }}
+              source={
+                post.userAvatar
+                  ? { uri: post.userAvatar }
+                  : require("../../assets/placeholderImg.jpg")
+              }
               style={{
                 width: 40,
                 height: 40,
@@ -365,10 +372,11 @@ const PostDetailScreen: React.FC = () => {
                 }}
               >
                 <Image
-                  source={{
-                    uri:
-                      comment.authorAvatar || "https://via.placeholder.com/32",
-                  }}
+                  source={
+                    comment.authorAvatar
+                      ? { uri: comment.authorAvatar }
+                      : require("../../assets/placeholderImg.jpg")
+                  }
                   style={{
                     width: 32,
                     height: 32,

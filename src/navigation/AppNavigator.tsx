@@ -9,6 +9,11 @@ import { useTheme } from "../contexts/ThemeContext";
 import { View, ActivityIndicator, Platform } from "react-native";
 import { useEffect, useState } from "react";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
+import type {
+  BottomTabNavigationEventMap,
+  BottomTabNavigationProp,
+} from "@react-navigation/bottom-tabs";
+import type { RouteProp } from "@react-navigation/native";
 import { db } from "../config/firebase";
 
 // Screen imports
@@ -39,6 +44,9 @@ export type MainTabParamList = {
   Notifications: undefined;
   AddPost: undefined;
 };
+
+// Keep a module-scoped timestamp so it persists across re-renders
+let lastHomeTabPress = 0;
 
 const MainTabs: React.FC = () => {
   const { user } = useAuth();
@@ -98,6 +106,22 @@ const MainTabs: React.FC = () => {
             <Ionicons name="home" size={size * 0.6} color={color} />
           ),
         }}
+        listeners={({ navigation, route }: { navigation: any; route: any }) => {
+          return {
+            tabPress: (e: any) => {
+              const now = Date.now();
+              if (now - lastHomeTabPress < 300) {
+                // double press detected - emit a custom event targeted to the Home route
+                navigation.emit({
+                  type: "tabDoublePress",
+                  target: route.key,
+                  data: { timestamp: now },
+                });
+              }
+              lastHomeTabPress = now;
+            },
+          };
+        }}
       />
       <Tab.Screen
         name="Search"
@@ -132,6 +156,16 @@ const MainTabs: React.FC = () => {
               : undefined,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="notifications" size={size * 0.6} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="AddPost"
+        component={AddPostScreen}
+        options={{
+          tabBarLabel: "Add",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="add-circle" size={size * 0.8} color={color} />
           ),
         }}
       />

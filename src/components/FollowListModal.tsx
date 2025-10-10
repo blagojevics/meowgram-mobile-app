@@ -11,6 +11,7 @@ import {
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useTheme } from "../contexts/ThemeContext";
+import { useNavigation } from "@react-navigation/native";
 
 interface FollowUser {
   id: string;
@@ -36,6 +37,7 @@ const FollowListModal: React.FC<FollowListModalProps> = ({
   const [users, setUsers] = useState<FollowUser[]>([]);
   const [loading, setLoading] = useState(true);
   const { colors } = useTheme();
+  const navigation = useNavigation<any>();
 
   useEffect(() => {
     if (!visible || !userId) return;
@@ -53,7 +55,12 @@ const FollowListModal: React.FC<FollowListModalProps> = ({
   }, [userId, type, visible]);
 
   const renderUserItem = ({ item }: { item: FollowUser }) => (
-    <View
+    <TouchableOpacity
+      onPress={() => {
+        // close modal then navigate to the selected user's profile
+        onClose();
+        navigation.navigate("UserProfile", { userId: item.uid || item.id });
+      }}
       style={{
         flexDirection: "row",
         alignItems: "center",
@@ -63,9 +70,11 @@ const FollowListModal: React.FC<FollowListModalProps> = ({
       }}
     >
       <Image
-        source={{
-          uri: item.avatarUrl || "https://via.placeholder.com/40",
-        }}
+        source={
+          item.avatarUrl
+            ? { uri: item.avatarUrl }
+            : require("../../assets/placeholderImg.jpg")
+        }
         style={{
           width: 40,
           height: 40,
@@ -78,7 +87,7 @@ const FollowListModal: React.FC<FollowListModalProps> = ({
       >
         {item.username}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 
   return (

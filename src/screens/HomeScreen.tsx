@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   FlatList,
@@ -19,7 +19,9 @@ import {
   onSnapshot,
   doc,
   getDoc,
+  getDocs,
 } from "firebase/firestore";
+import { useRoute } from "@react-navigation/native";
 import { db } from "../config/firebase";
 
 const { width } = Dimensions.get("window");
@@ -32,6 +34,22 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userDoc, setUserDoc] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const flatListRef = useRef<any>(null);
+  const route = useRoute();
+  const lastScrollParam = useRef<number | null>(null);
+
+  // Listen for custom double-press event emitted from the tab listener
+  useEffect(() => {
+    const sub = navigation.addListener("tabDoublePress", (e: any) => {
+      try {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      } catch (err) {
+        // ignore
+      }
+    });
+    return sub;
+  }, [navigation]);
 
   const currentUser = user
     ? {
@@ -86,6 +104,35 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     return () => unsubscribe();
   }, [user]);
 
+  // Respond to explicit scrollToTop param updates (sent from tab double-press)
+  useEffect(() => {
+    const param = (route.params as any)?.scrollToTop as number | undefined;
+    if (param && param !== lastScrollParam.current) {
+      lastScrollParam.current = param;
+      // scroll to top
+      try {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      } catch (err) {
+        // ignore if ref not set
+      }
+    }
+  }, [route.params]);
+
+  const handleRefresh = async () => {
+    if (!user) return;
+    setRefreshing(true);
+    try {
+      const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      const postsData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setPosts(postsData);
+    } catch (err) {
+      console.error("Failed to refresh posts:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   if (!user || !userDoc) {
     return (
       <View style={styles.container}>
@@ -133,14 +180,21 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       edges={["top"]}
     >
       <FlatList
+        ref={flatListRef}
         data={posts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <Post post={item} currentUser={currentUser} />
+          <Post
+            post={item}
+            currentUser={currentUser}
+            allowImagePress={currentUser?.uid === item.userId}
+          />
         )}
         ListHeaderComponent={renderHeader} // <-- Header scrolls away!
         contentContainerStyle={styles.postsFeed}
         showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
     </SafeAreaView>
   );

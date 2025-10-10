@@ -76,6 +76,17 @@ const AddPostScreen: React.FC = () => {
     })();
   }, []);
 
+  // Request camera permission as well
+  useEffect(() => {
+    (async () => {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        // Not forcing alert here because some users may not use camera
+        console.log("Camera permission not granted");
+      }
+    })();
+  }, []);
+
   const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -112,6 +123,66 @@ const AddPostScreen: React.FC = () => {
       console.error("Error picking image:", error);
       Alert.alert("Error", "Failed to pick image");
     }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        setSelectedImage(imageUri);
+        setModerationMessage("");
+        setAiAnalyzing(true);
+
+        // AI moderation check
+        try {
+          const aiResult = await moderateImageWithAI(imageUri, "post image");
+          if (!aiResult.isAllowed) {
+            setModerationMessage(`🚫 ${aiResult.reason}`);
+          } else {
+            setModerationMessage("✅ Image approved!");
+          }
+        } catch (error) {
+          console.error("AI moderation failed:", error);
+          setModerationMessage(
+            "⚠️ Could not verify image. Please ensure it follows community guidelines."
+          );
+        } finally {
+          setAiAnalyzing(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error taking photo:", error);
+      Alert.alert("Error", "Failed to take photo");
+    }
+  };
+
+  const showImageOptions = () => {
+    const options: any[] = [
+      { text: "Take Photo", onPress: takePhoto },
+      { text: "Choose from Library", onPress: pickImage },
+    ];
+
+    if (selectedImage) {
+      options.unshift({
+        text: "Remove Photo",
+        onPress: () => {
+          setSelectedImage(null);
+          setModerationMessage("");
+        },
+        style: "destructive",
+      });
+    }
+
+    options.push({ text: "Cancel", style: "cancel" });
+
+    Alert.alert("Add Photo", "Choose an option", options as any);
   };
 
   const uploadToCloudinary = async (imageUri: string) => {
@@ -235,7 +306,7 @@ const AddPostScreen: React.FC = () => {
 
           {/* Image Picker */}
           <TouchableOpacity
-            onPress={pickImage}
+            onPress={showImageOptions}
             style={{
               borderWidth: 2,
               borderColor: "#ddd",
@@ -246,14 +317,33 @@ const AddPostScreen: React.FC = () => {
               alignItems: "center",
               marginBottom: 20,
               backgroundColor: "#f9f9f9",
+              position: "relative",
             }}
           >
             {selectedImage ? (
-              <Image
-                source={{ uri: selectedImage }}
-                style={{ width: "100%", height: "100%", borderRadius: 8 }}
-                resizeMode="cover"
-              />
+              <>
+                <Image
+                  source={{ uri: selectedImage }}
+                  style={{ width: "100%", height: "100%", borderRadius: 8 }}
+                  resizeMode="cover"
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedImage(null);
+                    setModerationMessage("");
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    right: 8,
+                    backgroundColor: "rgba(0,0,0,0.5)",
+                    padding: 6,
+                    borderRadius: 16,
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>X</Text>
+                </TouchableOpacity>
+              </>
             ) : (
               <View style={{ alignItems: "center" }}>
                 <Text style={{ fontSize: 40, color: "#ccc", marginBottom: 10 }}>

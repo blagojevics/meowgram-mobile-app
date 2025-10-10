@@ -74,6 +74,7 @@ interface PostProps {
     newCaption?: string;
   }) => void;
   isFullScreen?: boolean;
+  allowImagePress?: boolean;
 }
 
 export default function Post({
@@ -81,6 +82,7 @@ export default function Post({
   currentUser,
   onPostActionComplete,
   isFullScreen,
+  allowImagePress = true,
 }: PostProps) {
   const navigation = useNavigation();
   const { colors } = useTheme();
@@ -103,6 +105,7 @@ export default function Post({
   const [totalComments, setTotalComments] = useState(0);
   const [showFullComments, setShowFullComments] = useState(false);
   const [showLikes, setShowLikes] = useState(false);
+  const [isUpdatingLike, setIsUpdatingLike] = useState(false);
 
   const [postUser, setPostUser] = useState<UserType | null>(null);
 
@@ -129,6 +132,8 @@ export default function Post({
 
   const handleLike = async () => {
     if (!currentUser) return;
+    if (isUpdatingLike) return;
+    setIsUpdatingLike(true);
     const postDocRef = doc(db, "posts", post.id);
     const userId = currentUser.uid;
     try {
@@ -160,6 +165,8 @@ export default function Post({
       }
     } catch (err) {
       console.error("Error updating like:", err);
+    } finally {
+      setIsUpdatingLike(false);
     }
   };
 
@@ -384,9 +391,10 @@ export default function Post({
 
       <TouchableOpacity
         style={styles.postImageContainer}
-        onPress={() =>
-          (navigation as any).navigate("PostDetail", { postId: post.id })
-        }
+        onPress={() => {
+          if (!allowImagePress) return;
+          (navigation as any).navigate("PostDetail", { postId: post.id });
+        }}
       >
         <Image
           source={
