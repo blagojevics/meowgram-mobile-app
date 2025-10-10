@@ -25,11 +25,15 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [error, setError] = useState<string | null>(null);
 
   const handleLogin = async () => {
+    console.log("Login button pressed with:", email, password);
     setError(null);
     try {
+      console.log("Calling login function...");
       await login(email, password);
-      // Navigation handled by AuthContext or useEffect in App
+      console.log("Login successful!");
+      // Navigation will be handled automatically by AppNavigator
     } catch (err: any) {
+      console.error("Login error:", err);
       setError(err.message || "Login failed");
     }
   };

@@ -13,7 +13,6 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import {
   deleteDoc,
@@ -32,6 +31,10 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import formatTimeAgo from "../config/timeFormat";
+import CommentInput from "./CommentInput";
+import CommentItem from "./CommentItem";
+import CommentsModal from "./CommentsModal";
+import LikesListModal from "./LikesListModal";
 
 const { width, height } = Dimensions.get("window");
 
@@ -322,11 +325,8 @@ export default function Post({
           <Text>🔗</Text>
         </TouchableOpacity>
         {currentUser && currentUser.uid === post.userId && (
-          <TouchableOpacity
-            onPress={() => setShowOptions(!showOptions)}
-            style={styles.postOptionsTrigger}
-          >
-            <Text>•••</Text>
+          <TouchableOpacity onPress={() => setShowOptions(!showOptions)}>
+            <Text style={styles.optionsText}>•••</Text>
           </TouchableOpacity>
         )}
         {showOptions && (
@@ -353,7 +353,9 @@ export default function Post({
 
       <TouchableOpacity
         style={styles.postImageContainer}
-        onPress={handleDoubleTap}
+        onPress={() =>
+          (navigation as any).navigate("PostDetail", { postId: post.id })
+        }
       >
         <Image
           source={{
@@ -372,13 +374,17 @@ export default function Post({
             },
           ]}
         >
-          <Ionicons name="heart" size={80} color="#e74c3c" />
+          <Text style={styles.likeHeart}>❤️</Text>
         </Animated.View>
       </TouchableOpacity>
 
       <View style={styles.postActions}>
         <TouchableOpacity onPress={handleLike} style={styles.postActionButton}>
-          <Ionicons name="heart" size={24} color={isLiked ? "red" : "gray"} />
+          <Text
+            style={[styles.actionIcon, { color: isLiked ? "red" : "gray" }]}
+          >
+            {isLiked ? "❤️" : "🤍"}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setShowLikes(true)}
@@ -390,7 +396,7 @@ export default function Post({
           onPress={() => setShowFullComments(true)}
           style={styles.postActionButton}
         >
-          <Ionicons name="chatbubble-outline" size={24} />
+          <Text style={styles.actionIcon}>💬</Text>
         </TouchableOpacity>
         <Text style={styles.postCommentsCount}>{post.commentsCount || 0}</Text>
       </View>
@@ -437,6 +443,7 @@ export default function Post({
             currentUser={currentUser}
             isPostOwner={post.userId === currentUser?.uid}
             onDelete={handleDeleteComment}
+            post={post}
           />
         ))}
 
@@ -504,52 +511,6 @@ export default function Post({
     </View>
   );
 }
-
-// Placeholder components - need to be ported
-const CommentItem = ({ comment, currentUser, isPostOwner, onDelete }: any) => (
-  <View style={styles.comment}>
-    <Text>{comment.text}</Text>
-    {/* Implement properly */}
-  </View>
-);
-
-const CommentsModal = ({
-  isOpen,
-  onClose,
-  postId,
-  currentUser,
-  isPostOwner,
-  post,
-}: any) => (
-  <Modal visible={isOpen} onRequestClose={onClose}>
-    <View>
-      <Text>Comments Modal Placeholder</Text>
-      <TouchableOpacity onPress={onClose}>
-        <Text>Close</Text>
-      </TouchableOpacity>
-    </View>
-  </Modal>
-);
-
-const LikesListModal = ({ isOpen, onClose, likedByUsers }: any) => (
-  <Modal visible={isOpen} onRequestClose={onClose}>
-    <View>
-      <Text>Likes: {likedByUsers.join(", ")}</Text>
-      <TouchableOpacity onPress={onClose}>
-        <Text>Close</Text>
-      </TouchableOpacity>
-    </View>
-  </Modal>
-);
-
-const CommentInput = ({ post, postId, currentUser }: any) => (
-  <View style={styles.commentInput}>
-    <TextInput placeholder="Add a comment..." />
-    <TouchableOpacity>
-      <Text>Post</Text>
-    </TouchableOpacity>
-  </View>
-);
 
 const styles = StyleSheet.create({
   postCard: {
@@ -737,5 +698,16 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: "#e74c3c",
     borderRadius: 4,
+  },
+  likeHeart: {
+    fontSize: 80,
+    color: "#e74c3c",
+  },
+  actionIcon: {
+    fontSize: 24,
+  },
+  optionsText: {
+    fontSize: 20,
+    color: "#666",
   },
 });

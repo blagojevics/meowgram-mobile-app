@@ -1,74 +1,124 @@
 import React, { useEffect, useState } from "react";
-import { View, FlatList, StyleSheet, Dimensions, Text } from "react-native";
+import {
+  View,
+  FlatList,
+  StyleSheet,
+  Dimensions,
+  Text,
+  TouchableOpacity,
+} from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { useMockAuth } from "../contexts/MockAuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import Post from "../components/Post";
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+import { db } from "../config/firebase";
 
 const { width } = Dimensions.get("window");
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
-// Dummy data for posts
-const dummyPosts = [
-  {
-    id: "1",
-    imageUrl: "https://via.placeholder.com/300",
-    caption: "Sample post 1",
-    userId: "mockUserId",
-    createdAt: { toDate: () => new Date() },
-    likesCount: 5,
-    likedByUsers: [],
-    commentsCount: 2,
-  },
-  {
-    id: "2",
-    imageUrl: "https://via.placeholder.com/300",
-    caption: "Sample post 2",
-    userId: "mockUserId",
-    createdAt: { toDate: () => new Date() },
-    likesCount: 3,
-    likedByUsers: [],
-    commentsCount: 1,
-  },
-  {
-    id: "3",
-    imageUrl: "https://via.placeholder.com/300",
-    caption: "Sample post 3",
-    userId: "mockUserId",
-    createdAt: { toDate: () => new Date() },
-    likesCount: 0,
-    likedByUsers: [],
-    commentsCount: 0,
-  },
-];
-
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
-  const { authUser, userDoc } = useMockAuth();
-  const [posts, setPosts] = useState(dummyPosts);
-  const [loadingPosts, setLoadingPosts] = useState(false);
+  const { user, logout } = useAuth();
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userDoc, setUserDoc] = useState<any>(null);
 
-  const currentUser = authUser
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Navigation will be handled automatically by AppNavigator
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
+
+  const currentUser = user
     ? {
-        uid: authUser.uid,
+        uid: user.uid,
         username: userDoc?.username || "",
         avatarUrl: "",
         photoURL: "",
       }
     : null;
 
+  // Fetch user document when user changes
   useEffect(() => {
-    if (!authUser) return;
-    // Simulate loading
-    setLoadingPosts(true);
-    setTimeout(() => {
-      setPosts(dummyPosts);
-      setLoadingPosts(false);
-    }, 1000);
-  }, [authUser]);
+    if (!user) {
+      setUserDoc(null);
+      return;
+    }
 
-  if (!authUser || !userDoc) {
+    const fetchUserDoc = async () => {
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setUserDoc(userDocSnap.data());
+        } else {
+          console.log("User document not found");
+          setUserDoc(null);
+        }
+      } catch (error) {
+        console.error("Error fetching user document:", error);
+        setUserDoc(null);
+      }
+    };
+
+    fetchUserDoc();
+  }, [user]);
+
+  useEffect(() => {
+    console.log("HomeScreen useEffect triggered, user:", user);
+    if (!user) {
+      console.log("No user, returning");
+      return;
+    }
+
+    setLoadingPosts(true);
+    setError(null);
+
+    console.log("Setting up Firestore listener...");
+
+    // Fetch posts from Firestore
+    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        console.log(
+          "Firestore snapshot received, docs count:",
+          querySnapshot.docs.length
+        );
+        const postsData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        console.log("Posts data:", postsData);
+        setPosts(postsData);
+        setLoadingPosts(false);
+      },
+      (err) => {
+        console.error("Error fetching posts:", err);
+        setError("Failed to load posts");
+        setLoadingPosts(false);
+      }
+    );
+
+    return () => {
+      console.log("Unsubscribing from Firestore listener");
+      unsubscribe();
+    };
+  }, [user]);
+
+  if (!user || !userDoc) {
     return (
       <View style={styles.container}>
         <Text>Loading user data...</Text>
@@ -105,8 +155,11 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       {/* Header - Mobile-focused */}
       <View style={styles.header}>
         <Text style={styles.logo}>Meowgram</Text>
-        {/* ThemeToggle placeholder */}
-        <Text>Theme</Text>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Posts Feed */}
@@ -139,9 +192,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",
   },
+  headerButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   logo: {
     fontSize: 20,
     fontWeight: "bold",
+  },
+  logoutButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: "#007AFF",
+    borderRadius: 5,
+  },
+  logoutText: {
+    color: "#fff",
+    fontWeight: "600",
   },
   postsFeed: {
     paddingHorizontal: width < 550 ? 10 : 0,

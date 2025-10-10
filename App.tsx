@@ -1,11 +1,11 @@
 import React from "react";
-import { MockAuthProvider } from "./src/contexts/MockAuthContext";
+import { AuthProvider } from "./src/contexts/AuthContext";
 import AppNavigator from "./src/navigation/AppNavigator";
 
 export default function App() {
   return (
-    <MockAuthProvider>
+    <AuthProvider>
       <AppNavigator />
-    </MockAuthProvider>
+    </AuthProvider>
   );
 }

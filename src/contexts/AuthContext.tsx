@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { initializeApp } from "firebase/app";
 import {
   getAuth,
   onAuthStateChanged,
@@ -10,24 +9,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { getFirestore } from "firebase/firestore";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import Constants from "expo-constants";
-
-// Firebase config from environment variables
-const firebaseConfig = {
-  apiKey: Constants.expoConfig?.extra?.firebaseApiKey || "",
-  authDomain: Constants.expoConfig?.extra?.firebaseAuthDomain || "",
-  projectId: Constants.expoConfig?.extra?.firebaseProjectId || "",
-  storageBucket: Constants.expoConfig?.extra?.firebaseStorageBucket || "",
-  messagingSenderId:
-    Constants.expoConfig?.extra?.firebaseMessagingSenderId || "",
-  appId: Constants.expoConfig?.extra?.firebaseAppId || "",
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+import { auth, db } from "../config/firebase";
 
 type AuthContextType = {
   user: User | null;
@@ -58,7 +40,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    console.log("AuthContext login called with:", email);
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      console.log("Firebase login successful:", result.user.email);
+    } catch (error) {
+      console.error("Firebase login error:", error);
+      throw error;
+    }
   };
 
   const register = async (
