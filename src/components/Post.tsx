@@ -430,7 +430,7 @@ export default function Post({
           onPress={() => setShowLikes(true)}
           style={styles.postLikesCount}
         >
-          <Text style={{ color: colors.textSecondary }}>{likesCount} Paws</Text>
+          <Text style={{ color: colors.textSecondary }}>{likesCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setShowFullComments(true)}

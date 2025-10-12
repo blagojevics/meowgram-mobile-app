@@ -12,6 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../contexts/ThemeContext";
 import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -35,6 +36,7 @@ type AddPostScreenNavigationProp = NativeStackNavigationProp<
 const AddPostScreen: React.FC = () => {
   const navigation = useNavigation<AddPostScreenNavigationProp>();
   const { user } = useAuth();
+  const { colors } = useTheme();
 
   const [caption, setCaption] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -186,41 +188,61 @@ const AddPostScreen: React.FC = () => {
   };
 
   const uploadToCloudinary = async (imageUri: string) => {
-    const formData = new FormData();
+    try {
+      const formData = new FormData();
 
-    // Get file extension
-    const fileExtension = imageUri.split(".").pop();
-    const fileName = `post_${Date.now()}.${fileExtension}`;
-
-    formData.append("file", {
-      uri: imageUri,
-      type: `image/${fileExtension}`,
-      name: fileName,
-    } as any);
-
-    formData.append(
-      "upload_preset",
-      process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET!
-    );
-    formData.append(
-      "cloud_name",
-      process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME!
-    );
-
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-      {
-        method: "POST",
-        body: formData,
+      // Try to infer file extension and mime type
+      let fileExtension = "jpg";
+      try {
+        const maybeExt = imageUri.split(".").pop();
+        if (maybeExt && maybeExt.length <= 5 && maybeExt.indexOf("/") === -1) {
+          fileExtension = maybeExt;
+        }
+      } catch (err) {
+        // ignore, fallback to jpg
       }
-    );
 
-    if (!response.ok) {
-      throw new Error("Upload failed");
+      const mimeType = `image/${
+        fileExtension === "jpg" ? "jpeg" : fileExtension
+      }`;
+      const fileName = `post_${Date.now()}.${fileExtension}`;
+
+      formData.append("file", {
+        uri: imageUri,
+        type: mimeType,
+        name: fileName,
+      } as any);
+
+      formData.append(
+        "upload_preset",
+        process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET!
+      );
+      formData.append(
+        "cloud_name",
+        process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME!
+      );
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(
+          `Upload failed: ${response.status} ${response.statusText} ${text}`
+        );
+      }
+
+      const result = await response.json();
+      return result.secure_url;
+    } catch (err) {
+      console.error("Cloudinary upload error:", err);
+      throw err;
     }
-
-    const result = await response.json();
-    return result.secure_url;
   };
 
   const handleSubmit = async () => {
@@ -234,10 +256,7 @@ const AddPostScreen: React.FC = () => {
       return;
     }
 
-    if (!caption.trim()) {
-      Alert.alert("Error", "Please add a caption");
-      return;
-    }
+    // Caption is optional now — allow empty captions
 
     if (moderationMessage.includes("🚫")) {
       Alert.alert(
@@ -279,7 +298,7 @@ const AddPostScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -291,17 +310,27 @@ const AddPostScreen: React.FC = () => {
               flexDirection: "row",
               alignItems: "center",
               marginBottom: 30,
+              justifyContent: "space-between",
             }}
           >
             <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={{ padding: 8, marginRight: 15 }}
             >
-              <Text style={{ fontSize: 18, color: "#007AFF" }}>← Back</Text>
+              <Text style={{ fontSize: 18, color: colors.brandPrimary }}>
+                ← Back
+              </Text>
             </TouchableOpacity>
-            <Text style={{ fontSize: 20, fontWeight: "bold" }}>
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: "bold",
+                color: colors.textPrimary,
+              }}
+            >
               Create New Post
             </Text>
+            <View style={{ width: 44 }} />
           </View>
 
           {/* Image Picker */}
@@ -309,14 +338,14 @@ const AddPostScreen: React.FC = () => {
             onPress={showImageOptions}
             style={{
               borderWidth: 2,
-              borderColor: "#ddd",
+              borderColor: colors.borderLight,
               borderStyle: "dashed",
               borderRadius: 10,
               height: 200,
               justifyContent: "center",
               alignItems: "center",
               marginBottom: 20,
-              backgroundColor: "#f9f9f9",
+              backgroundColor: colors.bgSecondary,
               position: "relative",
             }}
           >
@@ -349,7 +378,7 @@ const AddPostScreen: React.FC = () => {
                 <Text style={{ fontSize: 40, color: "#ccc", marginBottom: 10 }}>
                   📷
                 </Text>
-                <Text style={{ color: "#666", fontSize: 16 }}>
+                <Text style={{ color: colors.textSecondary, fontSize: 16 }}>
                   Tap to select image
                 </Text>
               </View>
@@ -365,8 +394,8 @@ const AddPostScreen: React.FC = () => {
                 marginBottom: 15,
               }}
             >
-              <ActivityIndicator size="small" color="#007AFF" />
-              <Text style={{ marginLeft: 10, color: "#666" }}>
+              <ActivityIndicator size="small" color={colors.brandPrimary} />
+              <Text style={{ marginLeft: 10, color: colors.textSecondary }}>
                 🤖 AI analyzing image...
               </Text>
             </View>
@@ -379,19 +408,19 @@ const AddPostScreen: React.FC = () => {
                 borderRadius: 8,
                 marginBottom: 20,
                 backgroundColor: moderationMessage.includes("🚫")
-                  ? "#ffebee"
-                  : "#e8f5e8",
+                  ? colors.bgTertiary
+                  : colors.bgSecondary,
                 borderColor: moderationMessage.includes("🚫")
-                  ? "#f44336"
-                  : "#4caf50",
+                  ? colors.danger
+                  : colors.success,
                 borderWidth: 1,
               }}
             >
               <Text
                 style={{
                   color: moderationMessage.includes("🚫")
-                    ? "#c62828"
-                    : "#2e7d32",
+                    ? colors.danger
+                    : colors.success,
                   fontSize: 14,
                   fontWeight: "500",
                 }}
@@ -404,19 +433,22 @@ const AddPostScreen: React.FC = () => {
           {/* Caption Input */}
           <TextInput
             placeholder="Write a caption..."
+            placeholderTextColor={colors.textMuted}
             value={caption}
             onChangeText={setCaption}
             multiline
             numberOfLines={4}
             style={{
               borderWidth: 1,
-              borderColor: "#ddd",
+              borderColor: colors.borderColor,
               borderRadius: 8,
               padding: 15,
               fontSize: 16,
               textAlignVertical: "top",
               marginBottom: 30,
               minHeight: 100,
+              color: colors.textPrimary,
+              backgroundColor: colors.bgPrimary,
             }}
           />
 
@@ -424,19 +456,13 @@ const AddPostScreen: React.FC = () => {
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={
-              loading ||
-              !selectedImage ||
-              !caption.trim() ||
-              moderationMessage.includes("🚫")
+              loading || !selectedImage || moderationMessage.includes("🚫")
             }
             style={{
               backgroundColor:
-                loading ||
-                !selectedImage ||
-                !caption.trim() ||
-                moderationMessage.includes("🚫")
-                  ? "#ccc"
-                  : "#007AFF",
+                loading || !selectedImage || moderationMessage.includes("🚫")
+                  ? colors.borderLight
+                  : colors.brandPrimary,
               paddingVertical: 15,
               borderRadius: 8,
               alignItems: "center",
