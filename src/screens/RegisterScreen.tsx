@@ -8,7 +8,9 @@ import {
   ImageBackground,
   Dimensions,
   Alert,
+  ActivityIndicator,
 } from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { useAuth } from "../contexts/AuthContext";
@@ -25,9 +27,11 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = async () => {
     setError(null);
+    setIsLoading(true);
     try {
       await register(email, password, { name, username });
       Alert.alert("Account created");
@@ -35,6 +39,20 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       navigation.replace("MainTabs");
     } catch (err: any) {
       setError(err.message || "Registration failed");
+      Alert.alert("Registration error", err.message || "Registration failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const { googleSignIn } = require("../contexts/AuthContext").useAuth();
+
+  const handleGoogle = async () => {
+    setError(null);
+    try {
+      await googleSignIn();
+    } catch (err: any) {
+      setError(err.message || "Google sign-in failed");
     }
   };
 
@@ -93,8 +111,38 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
                 secureTextEntry
               />
               {error && <Text style={styles.error}>{error}</Text>}
-              <Pressable style={styles.registerButton} onPress={handleRegister}>
-                <Text style={styles.buttonText}>Register</Text>
+              <Pressable
+                style={[
+                  styles.registerButton,
+                  isLoading && styles.disabledButton,
+                ]}
+                onPress={handleRegister}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="black" />
+                ) : (
+                  <Text style={styles.buttonText}>Register</Text>
+                )}
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.googleButton,
+                  isLoading && styles.disabledButton,
+                ]}
+                onPress={handleGoogle}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#4285F4" />
+                ) : (
+                  <View style={styles.googleInner}>
+                    <FontAwesome name="google" size={18} color="#4285F4" />
+                    <Text style={[styles.buttonText, { marginLeft: 10 }]}>
+                      Continue with Google
+                    </Text>
+                  </View>
+                )}
               </Pressable>
             </View>
           </View>
@@ -194,6 +242,22 @@ const styles = StyleSheet.create({
     width: 200,
     borderWidth: 1,
     borderColor: "rgba(104, 85, 224, 1)",
+  },
+  googleButton: {
+    backgroundColor: "#fff",
+    borderRadius: 4,
+    paddingVertical: 10,
+    width: 200,
+    borderWidth: 1,
+    borderColor: "#4285F4",
+  },
+  googleInner: {
+    flexDirection: "row" as "row",
+    alignItems: "center" as "center",
+    justifyContent: "center",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });
 

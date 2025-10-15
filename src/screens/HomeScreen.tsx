@@ -188,6 +188,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             post={item}
             currentUser={currentUser}
             allowImagePress={currentUser?.uid === item.userId}
+            imageStyle={{ width: "100%", height: 300 }} // Enforce consistent dimensions
           />
         )}
         ListHeaderComponent={renderHeader} // <-- Header scrolls away!

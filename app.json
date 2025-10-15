@@ -4,9 +4,7 @@
     "slug": "meowspace",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -17,27 +15,33 @@
     },
     "android": {
       "package": "com.stefan.meowspace",
+      "versionCode": 8,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
+    "scheme": "meowspace",
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "eas": {
-        "projectId": "6db38f01-ece8-42b8-a21e-f6c71b390d48"
-      },
       "firebaseApiKey": "your_api_key_here",
       "firebaseAuthDomain": "your_project_id.firebaseapp.com",
       "firebaseProjectId": "your_project_id",
       "firebaseStorageBucket": "your_project_id.appspot.com",
       "firebaseMessagingSenderId": "your_sender_id",
-      "firebaseAppId": "your_app_id"
+      "firebaseAppId": "your_app_id",
+      "eas": {
+        "projectId": "263bdcda-d3f6-4ec1-a163-91417eab6c55"
+      }
     },
-    "owner": "blagoe"
+    "owner": "blagoe",
+    "plugins": [
+      "expo-font",
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
+    ]
   }
 }

@@ -8,7 +8,9 @@ import {
   Alert,
   ImageBackground,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { useAuth } from "../contexts/AuthContext";
@@ -19,14 +21,16 @@ const { width, height } = Dimensions.get("window");
 const isMobile = width < 600;
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
-  const { login } = useAuth();
+  const { login, googleSignIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
     console.log("Login button pressed with:", email, password);
     setError(null);
+    setIsLoading(true);
     try {
       console.log("Calling login function...");
       await login(email, password);
@@ -35,6 +39,23 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     } catch (err: any) {
       console.error("Login error:", err);
       setError(err.message || "Login failed");
+      Alert.alert("Login error", err.message || "Login failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      await googleSignIn();
+    } catch (err: any) {
+      console.error("Google login error:", err);
+      setError(err.message || "Google login failed");
+      Alert.alert("Google sign-in error", err.message || "Google login failed");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -82,10 +103,38 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 secureTextEntry
               />
               {error && <Text style={styles.error}>{error}</Text>}
-              <Pressable style={styles.loginButton} onPress={handleLogin}>
-                <Text style={styles.buttonText}>Login!</Text>
+              <Pressable
+                style={[styles.loginButton, isLoading && styles.disabledButton]}
+                onPress={handleLogin}
+                disabled={isLoading}
+                accessibilityLabel="Login button"
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="black" />
+                ) : (
+                  <Text style={styles.buttonText}>Login!</Text>
+                )}
               </Pressable>
-              {/* Google login skipped for now */}
+              <Pressable
+                style={[
+                  styles.googleButton,
+                  isLoading && styles.disabledButton,
+                ]}
+                onPress={handleGoogle}
+                disabled={isLoading}
+                accessibilityLabel="Continue with Google"
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#4285F4" />
+                ) : (
+                  <View style={styles.googleInner}>
+                    <FontAwesome name="google" size={18} color="#4285F4" />
+                    <Text style={[styles.buttonText, { marginLeft: 10 }]}>
+                      Continue with Google
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
             </View>
           </View>
         </View>
@@ -188,6 +237,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(104, 85, 224, 1)",
     marginBottom: 10,
+  },
+  googleButton: {
+    backgroundColor: "#fff",
+    borderRadius: 4,
+    paddingVertical: 10,
+    width: 200,
+    borderWidth: 1,
+    borderColor: "#4285F4",
+    marginBottom: 10,
+  },
+  googleInner: {
+    flexDirection: "row" as "row",
+    alignItems: "center" as "center",
+    justifyContent: "center",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });
 

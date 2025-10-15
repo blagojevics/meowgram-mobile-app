@@ -1,9 +1,10 @@
-import { initializeApp, getApps } from "firebase/app";
-import { getAuth, initializeAuth } from "firebase/auth";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { Auth, getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -13,21 +14,37 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase only if it hasn't been initialized yet
-const app =
-  getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+// Initialize Firebase
 
-// Initialize Auth with AsyncStorage persistence for React Native
-let auth: any;
+let app;
+let auth: Auth;
+
+// This prevents re-initializing the app on hot reloads
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
+}
+
+// Initialize auth with React Native persistence
 try {
-  // Try to initialize auth (in some environments initializeAuth may already have been called)
-  // Keep this simple to avoid depending on getReactNativePersistence export differences
-  auth = initializeAuth(app);
-} catch (error) {
-  // If initializeAuth fails (already initialized or not available), fall back to getAuth
+  const {
+    initializeAuth,
+    getReactNativePersistence,
+  } = require("firebase/auth");
+  const AsyncStorage =
+    require("@react-native-async-storage/async-storage").default;
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+} catch (e) {
+  // Fallback to web getAuth if RN helper is unavailable
   auth = getAuth(app);
 }
 
-export { auth };
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+// Initialize other Firebase services
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// Export the services
+export { app, auth, db, storage };

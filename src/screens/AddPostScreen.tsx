@@ -10,6 +10,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../contexts/ThemeContext";
@@ -27,6 +28,7 @@ import { db } from "../config/firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { moderateImageWithAI } from "../services/aiModeration";
+import * as ImageManipulator from "expo-image-manipulator";
 
 type AddPostScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -40,6 +42,7 @@ const AddPostScreen: React.FC = () => {
 
   const [caption, setCaption] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [previewHeight, setPreviewHeight] = useState<number | null>(200);
   const [loading, setLoading] = useState(false);
   const [moderationMessage, setModerationMessage] = useState("");
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
@@ -93,14 +96,24 @@ const AddPostScreen: React.FC = () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        // Do not force cropping in the picker — allow users to pick the full image
+        allowsEditing: false,
         quality: 0.8,
       });
 
       if (!result.canceled && result.assets[0]) {
         const imageUri = result.assets[0].uri;
         setSelectedImage(imageUri);
+        // compute preview height to preserve aspect ratio
+        try {
+          Image.getSize(imageUri, (w, h) => {
+            const screenW = Dimensions.get("window").width - 40; // padding
+            const calculatedH = Math.min(500, (h / w) * screenW);
+            setPreviewHeight(calculatedH);
+          });
+        } catch (e) {
+          setPreviewHeight(200);
+        }
         setModerationMessage("");
         setAiAnalyzing(true);
 
@@ -131,14 +144,23 @@ const AddPostScreen: React.FC = () => {
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        // Capture full photo, don't force cropping here
+        allowsEditing: false,
         quality: 0.8,
       });
 
       if (!result.canceled && result.assets[0]) {
         const imageUri = result.assets[0].uri;
         setSelectedImage(imageUri);
+        try {
+          Image.getSize(imageUri, (w, h) => {
+            const screenW = Dimensions.get("window").width - 40;
+            const calculatedH = Math.min(500, (h / w) * screenW);
+            setPreviewHeight(calculatedH);
+          });
+        } catch (e) {
+          setPreviewHeight(200);
+        }
         setModerationMessage("");
         setAiAnalyzing(true);
 
@@ -189,28 +211,14 @@ const AddPostScreen: React.FC = () => {
 
   const uploadToCloudinary = async (imageUri: string) => {
     try {
+      let uploadUri = imageUri;
+
+      // Resize image before upload
       const formData = new FormData();
-
-      // Try to infer file extension and mime type
-      let fileExtension = "jpg";
-      try {
-        const maybeExt = imageUri.split(".").pop();
-        if (maybeExt && maybeExt.length <= 5 && maybeExt.indexOf("/") === -1) {
-          fileExtension = maybeExt;
-        }
-      } catch (err) {
-        // ignore, fallback to jpg
-      }
-
-      const mimeType = `image/${
-        fileExtension === "jpg" ? "jpeg" : fileExtension
-      }`;
-      const fileName = `post_${Date.now()}.${fileExtension}`;
-
       formData.append("file", {
-        uri: imageUri,
-        type: mimeType,
-        name: fileName,
+        uri: uploadUri,
+        type: "image/jpeg",
+        name: `post_${Date.now()}.jpg`,
       } as any);
 
       formData.append(
@@ -238,7 +246,10 @@ const AddPostScreen: React.FC = () => {
       }
 
       const result = await response.json();
-      return result.secure_url;
+      return result.secure_url.replace(
+        "/upload/",
+        "/upload/c_fill,w_300,h_300/"
+      ); // Apply Cloudinary transformations
     } catch (err) {
       console.error("Cloudinary upload error:", err);
       throw err;
@@ -297,6 +308,25 @@ const AddPostScreen: React.FC = () => {
     }
   };
 
+  const editImage = async () => {
+    if (!selectedImage) return;
+
+    try {
+      const result = await ImageManipulator.manipulateAsync(
+        selectedImage,
+        [
+          { crop: { originX: 0, originY: 0, width: 300, height: 300 } }, // Example crop
+        ],
+        { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      setSelectedImage(result.uri); // Update state with edited image
+    } catch (error) {
+      console.error("Error editing image:", error);
+      Alert.alert("Error", "Failed to edit image");
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
       <KeyboardAvoidingView
@@ -341,38 +371,21 @@ const AddPostScreen: React.FC = () => {
               borderColor: colors.borderLight,
               borderStyle: "dashed",
               borderRadius: 10,
-              height: 200,
+              height: 300, // Fixed height for consistency
               justifyContent: "center",
               alignItems: "center",
               marginBottom: 20,
               backgroundColor: colors.bgSecondary,
               position: "relative",
+              overflow: "hidden",
             }}
           >
             {selectedImage ? (
-              <>
-                <Image
-                  source={{ uri: selectedImage }}
-                  style={{ width: "100%", height: "100%", borderRadius: 8 }}
-                  resizeMode="cover"
-                />
-                <TouchableOpacity
-                  onPress={() => {
-                    setSelectedImage(null);
-                    setModerationMessage("");
-                  }}
-                  style={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
-                    backgroundColor: "rgba(0,0,0,0.5)",
-                    padding: 6,
-                    borderRadius: 16,
-                  }}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>X</Text>
-                </TouchableOpacity>
-              </>
+              <Image
+                source={{ uri: selectedImage }}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="contain" // Maintain aspect ratio without cropping
+              />
             ) : (
               <View style={{ alignItems: "center" }}>
                 <Text style={{ fontSize: 40, color: "#ccc", marginBottom: 10 }}>
@@ -451,6 +464,24 @@ const AddPostScreen: React.FC = () => {
               backgroundColor: colors.bgPrimary,
             }}
           />
+
+          {/* Resize Image Button */}
+          {selectedImage && (
+            <TouchableOpacity
+              onPress={editImage}
+              style={{
+                backgroundColor: colors.brandSecondary,
+                paddingVertical: 10,
+                borderRadius: 8,
+                alignItems: "center",
+                marginBottom: 20,
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}>
+                Resize Image
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Submit Button */}
           <TouchableOpacity

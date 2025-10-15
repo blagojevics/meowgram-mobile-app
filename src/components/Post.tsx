@@ -75,6 +75,7 @@ interface PostProps {
   }) => void;
   isFullScreen?: boolean;
   allowImagePress?: boolean;
+  imageStyle?: object; // Add optional imageStyle prop
 }
 
 export default function Post({
@@ -83,6 +84,7 @@ export default function Post({
   onPostActionComplete,
   isFullScreen,
   allowImagePress = true,
+  imageStyle,
 }: PostProps) {
   const navigation = useNavigation();
   const { colors } = useTheme();
@@ -397,13 +399,16 @@ export default function Post({
         }}
       >
         <Image
-          source={
-            post.imageUrl
-              ? { uri: post.imageUrl }
-              : require("../../assets/placeholderImg.jpg")
-          }
-          style={styles.postImage}
-          resizeMode="cover"
+          source={{
+            uri: post.imageUrl
+              ? `${post.imageUrl.replace(
+                  "/upload/",
+                  "/upload/c_fill,w_300,h_300/"
+                )}`
+              : require("../../assets/placeholderImg.jpg"),
+          }}
+          style={[styles.postImage, imageStyle]} // Apply consistent styling
+          resizeMode="cover" // Ensure the image fills the container
         />
         <Animated.View
           style={[
