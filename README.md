@@ -57,24 +57,25 @@ Adjust the above to match the actual project's implementation details.
 
 ### Screenshot 1
 
-![screenshot1](https://github.com/user-attachments/assets/85933e39-f997-4e81-bf09-c67bec0d3bd1)
+<img width="336" height="730" alt="image" src="https://github.com/user-attachments/assets/c94574c0-59dc-478f-b022-ef8ecf902901" />
+
 
 ### Screenshot 2
 
-![screenshot2](https://github.com/user-attachments/assets/769aefe4-9e7e-4f8f-a2aa-7a01b2f36ad0)
+<img width="336" height="730" alt="image" src="https://github.com/user-attachments/assets/1ac26b3e-c5d9-4e3b-b9e4-971d2406695b" />
+
 
 ### Screenshot 3
 
-![screenshot3](https://github.com/user-attachments/assets/7a2b37d5-c1ea-49bd-b265-60a13e72b76b)
-
+<img width="340" height="734" alt="image" src="https://github.com/user-attachments/assets/038f4257-af46-4273-88e2-063c1353ddac" />
 
 ### Screenshot 4
 
-![screenshot4](https://github.com/user-attachments/assets/58d03dbb-9ec1-4af4-a13d-dadcba8a8874)
+<img width="336" height="730" alt="image" src="https://github.com/user-attachments/assets/89927a55-0fa5-41db-8860-a9540e4c8b6a" />
 
 ### Screenshot 5
 
-![screenshot5](https://github.com/user-attachments/assets/3389bad2-2477-474f-bb28-19f95e6ac0bc)
+<img width="340" height="740" alt="image" src="https://github.com/user-attachments/assets/c05cd5ee-e68d-4ae3-beee-c518083e3a6f" />
 
 ## Getting started
 
