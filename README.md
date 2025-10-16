@@ -57,13 +57,11 @@ Adjust the above to match the actual project's implementation details.
 
 ### Screenshot 1
 
-<img width="336" height="730" alt="image" src="https://github.com/user-attachments/assets/c94574c0-59dc-478f-b022-ef8ecf902901" /> ### Screenshot 2
+<img width="336" height="730" alt="image" src="https://github.com/user-attachments/assets/c94574c0-59dc-478f-b022-ef8ecf902901" />
+
+### Screenshot 2
 
 <img width="336" height="730" alt="image" src="https://github.com/user-attachments/assets/1ac26b3e-c5d9-4e3b-b9e4-971d2406695b" />
-
-
-
-
 
 ### Screenshot 3
 
