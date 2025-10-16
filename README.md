@@ -57,23 +57,24 @@ Adjust the above to match the actual project's implementation details.
 
 ### Screenshot 1
 
-![Screenshot 1](assets/screenshot1.jpg)
+![screenshot1](https://github.com/user-attachments/assets/85933e39-f997-4e81-bf09-c67bec0d3bd1)
 
 ### Screenshot 2
 
-![Screenshot 2](assets/screenshot2.jpg)
+![screenshot2](https://github.com/user-attachments/assets/769aefe4-9e7e-4f8f-a2aa-7a01b2f36ad0)
 
 ### Screenshot 3
 
-![Screenshot 3](assets/screenshot3.jpg)
+![screenshot3](https://github.com/user-attachments/assets/7a2b37d5-c1ea-49bd-b265-60a13e72b76b)
+
 
 ### Screenshot 4
 
-![Screenshot 4](assets/screenshot4.jpg)
+![screenshot4](https://github.com/user-attachments/assets/58d03dbb-9ec1-4af4-a13d-dadcba8a8874)
 
 ### Screenshot 5
 
-![Screenshot 5](assets/screenshot5.jpg)
+![screenshot5](https://github.com/user-attachments/assets/3389bad2-2477-474f-bb28-19f95e6ac0bc)
 
 ## Getting started
 
