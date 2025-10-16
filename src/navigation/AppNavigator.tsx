@@ -26,15 +26,17 @@ import ProfileScreen from "../screens/ProfileScreen";
 import AddPostScreen from "../screens/AddPostScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import PostDetailScreen from "../screens/PostDetailScreen";
+import CropImageScreen from "../screens/CropImageScreen";
 
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   MainTabs: undefined;
   UserProfile: { userId: string };
-  AddPost: undefined;
+  AddPost: { selectedImage?: string };
   Settings: undefined;
   PostDetail: { postId: string };
+  CropImage: { imageUri: string };
 };
 
 export type MainTabParamList = {
@@ -42,7 +44,7 @@ export type MainTabParamList = {
   Search: undefined;
   Profile: { userId?: string };
   Notifications: undefined;
-  AddPost: undefined;
+  AddPost: { selectedImage?: string };
 };
 
 // Keep a module-scoped timestamp so it persists across re-renders
@@ -112,12 +114,8 @@ const MainTabs: React.FC = () => {
             tabPress: (e: any) => {
               const now = Date.now();
               if (now - lastHomeTabPress < 300) {
-                // double press detected - emit a custom event targeted to the Home route
-                navigation.emit({
-                  type: "tabDoublePress",
-                  target: route.key,
-                  data: { timestamp: now },
-                });
+                // double press detected - navigate to Home with scrollToTop param
+                navigation.navigate("Home", { scrollToTop: now });
               }
               lastHomeTabPress = now;
             },
@@ -210,8 +208,10 @@ const AppNavigatorContent: React.FC = () => {
               gestureEnabled: true,
             }}
           />
+          <Stack.Screen name="AddPost" component={AddPostScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+          <Stack.Screen name="CropImage" component={CropImageScreen} />
         </Stack.Navigator>
       ) : (
         // Unauthenticated user - show auth screens

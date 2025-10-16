@@ -13,6 +13,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { useAuth } from "../contexts/AuthContext";
+import { useTheme } from "../contexts/ThemeContext";
 import {
   collection,
   query,
@@ -26,7 +27,7 @@ import {
   doc,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
-import { useTheme } from "../contexts/ThemeContext";
+import PostPreview from "../components/PostPreview";
 
 const { width } = Dimensions.get("window");
 const PAGE_SIZE = 20;
@@ -60,6 +61,7 @@ const NotificationsScreen: React.FC = () => {
   const lastDocRef = useRef<any>(null);
   const [usersMap, setUsersMap] = useState<Record<string, UserData>>({});
   const unsubscribeRef = useRef<() => void | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Subscribe to recent notifications (real-time) and keep lastDoc for pagination
   useEffect(() => {
@@ -109,6 +111,15 @@ const NotificationsScreen: React.FC = () => {
         setNotifications(docs);
         setHasMore(snap.docs.length === PAGE_SIZE);
         setInitialLoading(false);
+
+        // Mark all unread notifications as read when opening the screen
+        const unreadNotifications = docs.filter((n) => !n.read);
+        if (unreadNotifications.length > 0) {
+          const markReadPromises = unreadNotifications.map((n) =>
+            updateDoc(doc(db, "notifications", n.id), { read: true })
+          );
+          await Promise.all(markReadPromises);
+        }
       },
       (err) => {
         console.error("Notifications onSnapshot error:", err);
@@ -185,20 +196,52 @@ const NotificationsScreen: React.FC = () => {
     }
   };
 
-  const getNotificationMessage = (n: Notification) => {
-    const from = usersMap[n.fromUserId];
-    const name = from?.username || "Someone";
-    switch (n.type) {
-      case "follow":
-        return `${name} started following you`;
-      case "like":
-        return `${name} liked your post`;
-      case "comment":
-        return `${name} commented on your post`;
-      case "commentLike":
-        return `${name} liked your comment`;
-      default:
-        return `${name} interacted with you`;
+  const handleRefresh = async () => {
+    if (!user) return;
+    setRefreshing(true);
+    try {
+      const q = query(
+        collection(db, "notifications"),
+        where("userId", "==", user.uid),
+        orderBy("createdAt", "desc"),
+        limit(PAGE_SIZE)
+      );
+      const snap = await getDocs(q);
+      const docs = snap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as any),
+      })) as Notification[];
+
+      // Update lastDoc for pagination
+      lastDocRef.current = snap.docs[snap.docs.length - 1] || null;
+
+      // Fetch user data for notifications
+      const userIds = [
+        ...new Set(docs.map((n) => n.fromUserId).filter(Boolean)),
+      ];
+      const missing = userIds.filter((id) => id && !usersMap[id]);
+      if (missing.length > 0) {
+        const promises = missing.map(async (uid) => {
+          const res = await getDocs(
+            query(collection(db, "users"), where("uid", "==", uid))
+          );
+          if (!res.empty) return { uid, data: res.docs[0].data() as UserData };
+          return null;
+        });
+        const results = await Promise.all(promises);
+        const newMap = { ...usersMap };
+        results.forEach((r) => {
+          if (r) newMap[r.uid] = r.data;
+        });
+        setUsersMap(newMap);
+      }
+
+      setNotifications(docs);
+      setHasMore(snap.docs.length === PAGE_SIZE);
+    } catch (err) {
+      console.error("Error refreshing notifications:", err);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -218,19 +261,48 @@ const NotificationsScreen: React.FC = () => {
 
   const renderItem = ({ item }: { item: Notification }) => {
     const fromUser = usersMap[item.fromUserId];
+    const username = fromUser?.username || "Someone";
 
-    const onPress = () => {
+    const onUsernamePress = () => {
       if (!item.read) markAsRead(item.id);
       try {
-        if (item.type === "follow" && item.fromUserId) {
+        if (item.fromUserId) {
           navigation.navigate("UserProfile", { userId: item.fromUserId });
-        } else if (item.postId) {
+        }
+      } catch (err) {
+        console.warn("Navigation failed for username:", err);
+      }
+    };
+
+    const onNotificationPress = () => {
+      if (!item.read) markAsRead(item.id);
+      try {
+        // For follow notifications, clicking outside username does nothing special
+        // For like/comment notifications, clicking outside username goes to post
+        if (item.type !== "follow" && item.postId) {
           navigation.navigate("PostDetail", { postId: item.postId });
         }
       } catch (err) {
         console.warn("Navigation failed for notification:", err);
       }
     };
+
+    const getMessageParts = (n: Notification) => {
+      switch (n.type) {
+        case "follow":
+          return { action: "started following you" };
+        case "like":
+          return { action: "liked your post" };
+        case "comment":
+          return { action: "commented on your post" };
+        case "commentLike":
+          return { action: "liked your comment" };
+        default:
+          return { action: "interacted with you" };
+      }
+    };
+
+    const messageParts = getMessageParts(item);
 
     return (
       <TouchableOpacity
@@ -245,7 +317,7 @@ const NotificationsScreen: React.FC = () => {
             { backgroundColor: colors.bgSecondary },
           ],
         ]}
-        onPress={onPress}
+        onPress={onNotificationPress}
       >
         <Image
           source={
@@ -256,15 +328,21 @@ const NotificationsScreen: React.FC = () => {
           style={styles.avatar}
         />
         <View style={styles.notificationContent}>
-          <Text
-            style={[styles.notificationText, { color: colors.textPrimary }]}
-          >
-            {getNotificationMessage(item)}
-          </Text>
+          <View style={styles.notificationTextContainer}>
+            <TouchableOpacity onPress={onUsernamePress}>
+              <Text style={[styles.usernameText, { color: "#333" }]}>
+                {username}
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.actionText, { color: colors.textPrimary }]}>
+              {" " + messageParts.action}
+            </Text>
+          </View>
           <Text style={[styles.timestamp, { color: colors.textMuted }]}>
             {formatTime(item.createdAt)}
           </Text>
         </View>
+        {item.postId && <PostPreview postId={item.postId} />}
         {!item.read && (
           <View
             style={[styles.unreadDot, { backgroundColor: colors.brandPrimary }]}
@@ -315,6 +393,8 @@ const NotificationsScreen: React.FC = () => {
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           contentContainerStyle={styles.notificationsList}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
           ListFooterComponent={
             loading ? (
               <ActivityIndicator size="small" color={colors.brandPrimary} />
@@ -383,7 +463,17 @@ const styles = StyleSheet.create({
   notificationContent: {
     flex: 1,
   },
-  notificationText: {
+  notificationTextContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  usernameText: {
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  actionText: {
     fontSize: 14,
     lineHeight: 20,
   },

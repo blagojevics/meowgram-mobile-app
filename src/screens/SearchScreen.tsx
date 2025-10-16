@@ -60,6 +60,7 @@ const SearchScreen: React.FC = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [recommendedUsers, setRecommendedUsers] = useState<UserResult[]>([]);
   const [recommendedPosts, setRecommendedPosts] = useState<PostResult[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Debounced search
   useEffect(() => {
@@ -227,6 +228,12 @@ const SearchScreen: React.FC = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchRecommended();
+    setRefreshing(false);
+  };
+
   const renderUserResult = ({ item }: { item: UserResult }) => (
     <TouchableOpacity
       style={[styles.userResult, { backgroundColor: colors.bgSecondary }]}
@@ -384,6 +391,8 @@ const SearchScreen: React.FC = () => {
               )}
             </View>
           )}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
         />
       ) : (
         // Show recommended users & posts when user hasn't searched yet
@@ -442,6 +451,8 @@ const SearchScreen: React.FC = () => {
                 )}
             </View>
           )}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
         />
       )}
     </View>

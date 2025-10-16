@@ -21,7 +21,7 @@ const { width, height } = Dimensions.get("window");
 const isMobile = width < 600;
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
-  const { login, googleSignIn } = useAuth();
+  const { login /* googleSignIn */ } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -45,19 +45,19 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const handleGoogle = async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      await googleSignIn();
-    } catch (err: any) {
-      console.error("Google login error:", err);
-      setError(err.message || "Google login failed");
-      Alert.alert("Google sign-in error", err.message || "Google login failed");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // const handleGoogle = async () => {
+  //   setError(null);
+  //   setIsLoading(true);
+  //   try {
+  //     await googleSignIn();
+  //   } catch (err: any) {
+  //     console.error("Google login error:", err);
+  //     setError(err.message || "Google login failed");
+  //     Alert.alert("Google sign-in error", err.message || "Google login failed");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   return (
     <ImageBackground
@@ -115,7 +115,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                   <Text style={styles.buttonText}>Login!</Text>
                 )}
               </Pressable>
-              <Pressable
+              {/* <Pressable
                 style={[
                   styles.googleButton,
                   isLoading && styles.disabledButton,
@@ -134,7 +134,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                     </Text>
                   </View>
                 )}
-              </Pressable>
+              </Pressable> */}
             </View>
           </View>
         </View>

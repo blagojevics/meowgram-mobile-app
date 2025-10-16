@@ -80,9 +80,8 @@ const CommentInput: React.FC<CommentInputProps> = ({
   };
 
   const handleKeyPress = (e: any) => {
-    if (e.nativeEvent.key === "Enter" && !e.shiftKey) {
-      handleSubmit();
-    }
+    // Enter now creates new line instead of sending
+    // Send button handles submission
   };
 
   return (
@@ -163,7 +162,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     gap: 8,
   },
   avatar: {

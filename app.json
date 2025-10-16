@@ -17,12 +17,13 @@
       "package": "com.stefan.meowspace",
       "versionCode": 8,
       "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
-    "scheme": "meowspace",
+    "icon": "./assets/icon.png",
     "web": {
       "favicon": "./assets/favicon.png"
     },
@@ -38,10 +39,6 @@
       }
     },
     "owner": "blagoe",
-    "plugins": [
-      "expo-font",
-      "expo-web-browser",
-      "@react-native-google-signin/google-signin"
-    ]
+    "plugins": ["expo-font", "expo-web-browser"]
   }
 }

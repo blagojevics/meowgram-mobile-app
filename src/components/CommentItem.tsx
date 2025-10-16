@@ -16,6 +16,9 @@ import {
   addDoc,
   collection,
   serverTimestamp,
+  query,
+  where,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 
@@ -90,16 +93,27 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
         // Create notification for comment like (only if not liking own comment)
         if (comment.authorId !== currentUser.uid) {
-          await addDoc(collection(db, "notifications"), {
-            userId: comment.authorId,
-            fromUserId: currentUser.uid,
-            type: "commentLike",
-            postId: comment.postId,
-            commentId: comment.id,
-            commentText: comment.text,
-            createdAt: serverTimestamp(),
-            read: false,
-          });
+          // Check if notification already exists
+          const existingNotificationQuery = query(
+            collection(db, "notifications"),
+            where("userId", "==", comment.authorId),
+            where("fromUserId", "==", currentUser.uid),
+            where("type", "==", "commentLike"),
+            where("commentId", "==", comment.id)
+          );
+          const existingSnap = await getDocs(existingNotificationQuery);
+          if (existingSnap.empty) {
+            await addDoc(collection(db, "notifications"), {
+              userId: comment.authorId,
+              fromUserId: currentUser.uid,
+              type: "commentLike",
+              postId: comment.postId,
+              commentId: comment.id,
+              commentText: comment.text,
+              createdAt: serverTimestamp(),
+              read: false,
+            });
+          }
         }
       }
     } catch (error) {
@@ -168,39 +182,45 @@ const CommentItem: React.FC<CommentItemProps> = ({
           />
         )}
         <View style={styles.commentContent}>
-          <Text style={styles.commentUsername}>
-            {author?.username || "Unknown"}
-          </Text>
-          <Text style={styles.commentText}>{comment.text}</Text>
+          <View style={styles.commentTextContainer}>
+            <Text style={styles.commentUsername}>
+              {author?.username || "Unknown"}
+            </Text>
+            <Text style={styles.commentText}>{comment.text}</Text>
+          </View>
+          <View style={styles.commentActions}>
+            <TouchableOpacity
+              onPress={handleLike}
+              style={[styles.likeButton, hasLiked && styles.likeButtonLiked]}
+              disabled={isLiking}
+            >
+              <Text style={[styles.likeIcon, hasLiked && styles.likeIconLiked]}>
+                🐾
+              </Text>
+              {likesCount > 0 && (
+                <Text
+                  style={[styles.likeCount, hasLiked && styles.likeCountLiked]}
+                >
+                  {likesCount}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <Text style={styles.commentTime}>
+              {comment.createdAt ? formatTimeAgo(comment.createdAt) : ""}
+            </Text>
+
+            {(isPostOwner || comment.authorId === currentUser?.uid) && (
+              <TouchableOpacity
+                onPress={handleDelete}
+                style={styles.deleteButton}
+              >
+                <Text style={styles.deleteText}>×</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
-
-      <View style={styles.commentActions}>
-        <TouchableOpacity
-          onPress={handleLike}
-          style={[styles.likeButton, hasLiked && styles.likeButtonLiked]}
-          disabled={isLiking}
-        >
-          <Text style={[styles.likeIcon, hasLiked && styles.likeIconLiked]}>
-            🐾
-          </Text>
-          {likesCount > 0 && (
-            <Text style={[styles.likeCount, hasLiked && styles.likeCountLiked]}>
-              {likesCount}
-            </Text>
-          )}
-        </TouchableOpacity>
-
-        <Text style={styles.commentTime}>
-          {comment.createdAt ? formatTimeAgo(comment.createdAt) : ""}
-        </Text>
-
-        {(isPostOwner || comment.authorId === currentUser?.uid) && (
-          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
-            <Text style={styles.deleteText}>×</Text>
-          </TouchableOpacity>
-        )}
-      </View>
     </View>
   );
 };
@@ -225,8 +245,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#ddd",
+    alignSelf: "flex-start",
   },
   commentContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  commentTextContainer: {
     flex: 1,
   },
   commentUsername: {
@@ -244,7 +271,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginTop: 4,
+    marginLeft: 8,
   },
   likeButton: {
     flexDirection: "row",

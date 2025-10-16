@@ -12,6 +12,12 @@ import {
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useTheme } from "../contexts/ThemeContext";
+import * as ImagePicker from "expo-image-picker";
+import {
+  CLOUDINARY_CLOUD_NAME,
+  CLOUDINARY_UPLOAD_PRESET,
+} from "../config/cloudinary";
+import { moderateImageWithAI } from "../services/aiModeration";
 
 interface UserProfile {
   uid: string;
@@ -42,8 +48,95 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
   );
   const [username, setUsername] = useState(currentUser?.username || "");
   const [bio, setBio] = useState(currentUser?.bio || "");
+  const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatarUrl || "");
   const [loading, setLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [moderationMessage, setModerationMessage] = useState("");
   const { colors } = useTheme();
+
+  const pickImage = async () => {
+    try {
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (permissionResult.granted === false) {
+        Alert.alert(
+          "Permission required",
+          "Permission to access camera roll is required!"
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        await uploadAvatar(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Failed to pick image");
+    }
+  };
+
+  const uploadAvatar = async (imageUri: string) => {
+    setUploadingAvatar(true);
+    setModerationMessage("");
+
+    try {
+      // AI moderation check
+      const aiResult = await moderateImageWithAI(imageUri, "profile avatar");
+
+      if (!aiResult.isAllowed) {
+        setModerationMessage(`🚫 ${aiResult.reason}`);
+        Alert.alert("Upload Blocked", aiResult.reason);
+        return;
+      }
+
+      setModerationMessage("🤖 AI approved! Uploading...");
+
+      // Upload to Cloudinary
+      const formData = new FormData();
+      formData.append("file", {
+        uri: imageUri,
+        type: "image/jpeg",
+        name: "avatar.jpg",
+      } as any);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.secure_url) {
+        setAvatarUrl(data.secure_url);
+        setModerationMessage("✅ Avatar uploaded successfully!");
+      } else {
+        throw new Error("Upload failed");
+      }
+    } catch (error) {
+      console.error("Avatar upload failed:", error);
+      setModerationMessage("❌ Upload failed");
+      Alert.alert("Error", "Failed to upload avatar");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const removeAvatar = () => {
+    setAvatarUrl("");
+    setModerationMessage("");
+  };
 
   const handleSave = async () => {
     if (!currentUser?.uid) return;
@@ -55,6 +148,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
         displayName,
         username,
         bio,
+        avatarUrl,
       });
 
       const updatedProfile = {
@@ -62,6 +156,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
         displayName,
         username,
         bio,
+        avatarUrl,
       };
 
       onProfileUpdate(updatedProfile);
@@ -77,6 +172,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setDisplayName(currentUser?.displayName || "");
     setUsername(currentUser?.username || "");
     setBio(currentUser?.bio || "");
+    setAvatarUrl(currentUser?.avatarUrl || "");
+    setModerationMessage("");
     onClose();
   };
 
@@ -200,6 +297,124 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
               multiline
               numberOfLines={3}
             />
+          </View>
+
+          <View style={{ marginBottom: 30 }}>
+            <Text
+              style={{
+                fontWeight: "600",
+                marginBottom: 10,
+                color: colors.textPrimary,
+              }}
+            >
+              Avatar
+            </Text>
+
+            {avatarUrl ? (
+              <View style={{ alignItems: "center", marginBottom: 10 }}>
+                <Image
+                  source={{ uri: avatarUrl }}
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 40,
+                    marginBottom: 10,
+                  }}
+                />
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: colors.brandPrimary,
+                      paddingHorizontal: 15,
+                      paddingVertical: 8,
+                      borderRadius: 6,
+                    }}
+                    onPress={pickImage}
+                    disabled={uploadingAvatar}
+                  >
+                    <Text
+                      style={{
+                        color: colors.bgPrimary,
+                        fontWeight: "600",
+                        fontSize: 14,
+                      }}
+                    >
+                      {uploadingAvatar ? "Uploading..." : "Change Avatar"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: colors.bgSecondary,
+                      paddingHorizontal: 15,
+                      paddingVertical: 8,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      borderColor: colors.borderColor,
+                    }}
+                    onPress={removeAvatar}
+                  >
+                    <Text
+                      style={{
+                        color: colors.textPrimary,
+                        fontWeight: "600",
+                        fontSize: 14,
+                      }}
+                    >
+                      Remove
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: colors.bgSecondary,
+                  padding: 20,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: colors.borderColor,
+                  borderStyle: "dashed",
+                  alignItems: "center",
+                }}
+                onPress={pickImage}
+                disabled={uploadingAvatar}
+              >
+                <Text
+                  style={{
+                    color: colors.textMuted,
+                    fontSize: 16,
+                    marginBottom: 5,
+                  }}
+                >
+                  {uploadingAvatar ? "Uploading..." : "Tap to add avatar"}
+                </Text>
+                <Text
+                  style={{
+                    color: colors.textMuted,
+                    fontSize: 14,
+                  }}
+                >
+                  Choose from gallery
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {moderationMessage ? (
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: moderationMessage.includes("🚫")
+                    ? "#e74c3c"
+                    : moderationMessage.includes("✅")
+                    ? "#27ae60"
+                    : colors.textMuted,
+                  textAlign: "center",
+                  marginTop: 10,
+                }}
+              >
+                {moderationMessage}
+              </Text>
+            ) : null}
           </View>
 
           <View

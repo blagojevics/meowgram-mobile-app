@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import Post from "../components/Post";
+import HomeScreenHeader from "../components/HomeScreenHeader";
 import {
   collection,
   query,
@@ -29,7 +30,7 @@ type Props = any;
 
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme, colors } = useTheme();
+  const { colors } = useTheme();
   const [posts, setPosts] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,24 +40,12 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const route = useRoute();
   const lastScrollParam = useRef<number | null>(null);
 
-  // Listen for custom double-press event emitted from the tab listener
-  useEffect(() => {
-    const sub = navigation.addListener("tabDoublePress", (e: any) => {
-      try {
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-      } catch (err) {
-        // ignore
-      }
-    });
-    return sub;
-  }, [navigation]);
-
   const currentUser = user
     ? {
         uid: user.uid,
         username: userDoc?.username || "",
-        avatarUrl: "",
-        photoURL: "",
+        avatarUrl: userDoc?.avatarUrl || "",
+        photoURL: user.photoURL || "",
       }
     : null;
 
@@ -149,36 +138,12 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     );
   }
 
-  // The header component for FlatList (will scroll away!)
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <Image
-        source={require("../../assets/logohomepage.png")}
-        style={[styles.logoImageLarge, { tintColor: colors.logoColor }]}
-        resizeMode="contain"
-      />
-      <TouchableOpacity
-        style={[
-          styles.themeToggle,
-          {
-            backgroundColor: colors.bgSecondary,
-            borderColor: colors.borderColor,
-          },
-        ]}
-        onPress={toggleTheme}
-      >
-        <Text style={{ fontSize: 18, color: colors.textPrimary }}>
-          {theme === "light" ? "☾" : "☀️"}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.bgPrimary }]}
       edges={["top"]}
     >
+      <HomeScreenHeader />
       <FlatList
         ref={flatListRef}
         data={posts}
@@ -188,10 +153,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             post={item}
             currentUser={currentUser}
             allowImagePress={currentUser?.uid === item.userId}
-            imageStyle={{ width: "100%", height: 300 }} // Enforce consistent dimensions
           />
         )}
-        ListHeaderComponent={renderHeader} // <-- Header scrolls away!
         contentContainerStyle={styles.postsFeed}
         showsVerticalScrollIndicator={false}
         refreshing={refreshing}
@@ -206,26 +169,6 @@ const styles = StyleSheet.create({
     flex: 1,
     width: width > 550 ? width * 0.5 : width,
     alignSelf: "center",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    height: 44,
-    paddingHorizontal: 10,
-    marginBottom: 0,
-  },
-  logoImageLarge: {
-    width: 100,
-    height: 44,
-  },
-  themeToggle: {
-    borderWidth: 1,
-    borderRadius: 18,
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
   },
   postsFeed: {
     paddingHorizontal: width < 550 ? 10 : 0,

@@ -45,16 +45,16 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const { googleSignIn } = require("../contexts/AuthContext").useAuth();
+  // const { googleSignIn } = require("../contexts/AuthContext").useAuth();
 
-  const handleGoogle = async () => {
-    setError(null);
-    try {
-      await googleSignIn();
-    } catch (err: any) {
-      setError(err.message || "Google sign-in failed");
-    }
-  };
+  // const handleGoogle = async () => {
+  //   setError(null);
+  //   try {
+  //     await googleSignIn();
+  //   } catch (err: any) {
+  //     setError(err.message || "Google sign-in failed");
+  //   }
+  // };
 
   return (
     <ImageBackground
@@ -125,7 +125,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
                   <Text style={styles.buttonText}>Register</Text>
                 )}
               </Pressable>
-              <Pressable
+              {/* <Pressable
                 style={[
                   styles.googleButton,
                   isLoading && styles.disabledButton,
@@ -143,7 +143,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
                     </Text>
                   </View>
                 )}
-              </Pressable>
+              </Pressable> */}
             </View>
           </View>
         </View>

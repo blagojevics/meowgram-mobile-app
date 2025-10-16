@@ -30,6 +30,7 @@ import {
   where,
   orderBy,
   onSnapshot,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import formatTimeAgo from "../config/timeFormat";
@@ -75,7 +76,6 @@ interface PostProps {
   }) => void;
   isFullScreen?: boolean;
   allowImagePress?: boolean;
-  imageStyle?: object; // Add optional imageStyle prop
 }
 
 export default function Post({
@@ -84,7 +84,6 @@ export default function Post({
   onPostActionComplete,
   isFullScreen,
   allowImagePress = true,
-  imageStyle,
 }: PostProps) {
   const navigation = useNavigation();
   const { colors } = useTheme();
@@ -95,9 +94,6 @@ export default function Post({
   );
   const [likesCount, setLikesCount] = useState(post.likesCount || 0);
   const [showOptions, setShowOptions] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedCaption, setEditedCaption] = useState(post.caption || "");
-  const [editingError, setEditingError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const lastTapTime = useRef(0);
   const likeAnimation = useRef(new Animated.Value(0)).current;
@@ -107,19 +103,26 @@ export default function Post({
   const [totalComments, setTotalComments] = useState(0);
   const [showFullComments, setShowFullComments] = useState(false);
   const [showLikes, setShowLikes] = useState(false);
-  const [isUpdatingLike, setIsUpdatingLike] = useState(false);
+  const isUpdatingLike = useRef(false);
 
   const [postUser, setPostUser] = useState<UserType | null>(null);
 
   useEffect(() => {
-    setEditedCaption(post.caption || "");
-    setIsLiked(
-      currentUser &&
-        post.likedByUsers &&
-        post.likedByUsers.includes(currentUser.uid)
-    );
-    setLikesCount(post.likesCount || 0);
-  }, [post, currentUser]);
+    const postRef = doc(db, "posts", post.id);
+    const unsubscribe = onSnapshot(postRef, (doc) => {
+      if (doc.exists()) {
+        const postData = doc.data();
+        setLikesCount(postData.likesCount || 0);
+        setIsLiked(
+          currentUser &&
+            postData.likedByUsers &&
+            postData.likedByUsers.includes(currentUser.uid)
+        );
+      }
+    });
+
+    return () => unsubscribe();
+  }, [post.id, currentUser]);
 
   useEffect(() => {
     if (!post.userId) return;
@@ -134,8 +137,8 @@ export default function Post({
 
   const handleLike = async () => {
     if (!currentUser) return;
-    if (isUpdatingLike) return;
-    setIsUpdatingLike(true);
+    if (isUpdatingLike.current) return;
+    isUpdatingLike.current = true;
     const postDocRef = doc(db, "posts", post.id);
     const userId = currentUser.uid;
     try {
@@ -144,31 +147,38 @@ export default function Post({
           likesCount: increment(-1),
           likedByUsers: arrayRemove(userId),
         });
-        setLikesCount((prev) => prev - 1);
-        setIsLiked(false);
       } else {
         await updateDoc(postDocRef, {
           likesCount: increment(1),
           likedByUsers: arrayUnion(userId),
         });
-        setLikesCount((prev) => prev + 1);
-        setIsLiked(true);
         if (post.userId !== currentUser.uid) {
-          await addDoc(collection(db, "notifications"), {
-            userId: post.userId,
-            fromUserId: currentUser.uid,
-            type: "like",
-            postId: post.id,
-            postCaption: post.caption,
-            createdAt: serverTimestamp(),
-            read: false,
-          });
+          // Check if notification already exists
+          const existingNotificationQuery = query(
+            collection(db, "notifications"),
+            where("userId", "==", post.userId),
+            where("fromUserId", "==", currentUser.uid),
+            where("type", "==", "like"),
+            where("postId", "==", post.id)
+          );
+          const existingSnap = await getDocs(existingNotificationQuery);
+          if (existingSnap.empty) {
+            await addDoc(collection(db, "notifications"), {
+              userId: post.userId,
+              fromUserId: currentUser.uid,
+              type: "like",
+              postId: post.id,
+              postCaption: post.caption,
+              createdAt: serverTimestamp(),
+              read: false,
+            });
+          }
         }
       }
     } catch (err) {
       console.error("Error updating like:", err);
     } finally {
-      setIsUpdatingLike(false);
+      isUpdatingLike.current = false;
     }
   };
 
@@ -197,47 +207,6 @@ export default function Post({
       Alert.alert("Link copied", "Post link copied to clipboard!");
     } catch (err) {
       console.error("Failed to copy link:", err);
-    }
-  };
-
-  const handleEditClick = () => {
-    setIsEditing(true);
-    setShowOptions(false);
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditedCaption(post.caption || "");
-    setEditingError(null);
-  };
-
-  const handleEditedCaptionChange = (text: string) => {
-    setEditedCaption(text);
-  };
-
-  const handleSaveEdit = async () => {
-    setEditingError(null);
-    if (editedCaption.trim() === "") {
-      setEditingError("Caption cannot be empty.");
-      return;
-    }
-    if (editedCaption === post.caption) {
-      setIsEditing(false);
-      return;
-    }
-    try {
-      const postDocRef = doc(db, "posts", post.id);
-      await updateDoc(postDocRef, { caption: editedCaption });
-      if (onPostActionComplete) {
-        onPostActionComplete({
-          type: "edit",
-          postId: post.id,
-          newCaption: editedCaption,
-        });
-      }
-      setIsEditing(false);
-    } catch (err) {
-      setEditingError((err as Error).message || "Failed to update caption.");
     }
   };
 
@@ -349,16 +318,16 @@ export default function Post({
               : "just now"}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleCopyLink} style={styles.copyLinkBtn}>
-          <Text>🔗</Text>
-        </TouchableOpacity>
         {currentUser && currentUser.uid === post.userId && (
           <TouchableOpacity onPress={() => setShowOptions(!showOptions)}>
             <Text style={styles.optionsText}>•••</Text>
           </TouchableOpacity>
         )}
         {showOptions && (
-          <TouchableWithoutFeedback onPress={() => setShowOptions(false)}>
+          <View style={styles.optionsFullScreenOverlay}>
+            <TouchableWithoutFeedback onPress={() => setShowOptions(false)}>
+              <View style={styles.optionsBackdrop} />
+            </TouchableWithoutFeedback>
             <View style={styles.optionsOverlay}>
               <View
                 style={[
@@ -366,28 +335,70 @@ export default function Post({
                   {
                     backgroundColor: colors.bgPrimary,
                     borderColor: colors.borderColor,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 4,
+                    elevation: 5,
                   },
                 ]}
               >
-                <TouchableOpacity onPress={handleCopyLink}>
-                  <Text style={{ color: colors.textPrimary }}>Copy Link</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleEditClick}>
-                  <Text style={{ color: colors.textPrimary }}>
-                    Edit Description
+                <TouchableOpacity
+                  style={styles.optionMenuItem}
+                  onPress={() =>
+                    (navigation as any).navigate("UserProfile", {
+                      userId: currentUser!.uid,
+                    })
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.optionMenuText,
+                      { color: colors.textPrimary },
+                    ]}
+                  >
+                    Edit Bio
                   </Text>
                 </TouchableOpacity>
+                <View
+                  style={[
+                    styles.optionSeparator,
+                    { backgroundColor: colors.borderColor },
+                  ]}
+                />
                 <TouchableOpacity
+                  style={styles.optionMenuItem}
                   onPress={handleDeletePost}
                   disabled={isDeleting}
                 >
-                  <Text style={{ color: colors.danger }}>
-                    {isDeleting ? "Deleting..." : "Delete Post"}
+                  <Text
+                    style={[styles.optionMenuText, { color: colors.danger }]}
+                  >
+                    {isDeleting ? "Deleting..." : "Delete"}
+                  </Text>
+                </TouchableOpacity>
+                <View
+                  style={[
+                    styles.optionSeparator,
+                    { backgroundColor: colors.borderColor },
+                  ]}
+                />
+                <TouchableOpacity
+                  style={styles.optionMenuItem}
+                  onPress={handleCopyLink}
+                >
+                  <Text
+                    style={[
+                      styles.optionMenuText,
+                      { color: colors.textPrimary },
+                    ]}
+                  >
+                    Copy Link
                   </Text>
                 </TouchableOpacity>
               </View>
             </View>
-          </TouchableWithoutFeedback>
+          </View>
         )}
       </View>
 
@@ -399,16 +410,13 @@ export default function Post({
         }}
       >
         <Image
-          source={{
-            uri: post.imageUrl
-              ? `${post.imageUrl.replace(
-                  "/upload/",
-                  "/upload/c_fill,w_300,h_300/"
-                )}`
-              : require("../../assets/placeholderImg.jpg"),
-          }}
-          style={[styles.postImage, imageStyle]} // Apply consistent styling
-          resizeMode="cover" // Ensure the image fills the container
+          source={
+            post.imageUrl
+              ? { uri: post.imageUrl }
+              : require("../../assets/placeholderImg.jpg")
+          }
+          style={styles.postImage}
+          resizeMode="cover"
         />
         <Animated.View
           style={[
@@ -451,44 +459,16 @@ export default function Post({
       </View>
 
       <View style={styles.postCaption}>
-        {isEditing ? (
-          <View>
-            <TextInput
-              value={editedCaption}
-              onChangeText={handleEditedCaptionChange}
-              multiline
-              numberOfLines={3}
-              style={styles.captionInput}
-            />
-            {editingError && (
-              <Text style={{ color: "red" }}>{editingError}</Text>
-            )}
-            <View style={styles.editButtons}>
-              <TouchableOpacity onPress={handleSaveEdit}>
-                <Text>Save</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleCancelEdit}>
-                <Text>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.captionLeft}>
-            <Text
-              style={[
-                styles.postCaptionUsername,
-                { color: colors.brandPrimary },
-              ]}
-            >
-              {postUser?.username + " •" || "Unknown User"}
-            </Text>
-            <Text
-              style={[styles.postCaptionText, { color: colors.textPrimary }]}
-            >
-              {post.caption || "No caption."}
-            </Text>
-          </View>
-        )}
+        <View style={styles.captionLeft}>
+          <Text
+            style={[styles.postCaptionUsername, { color: colors.brandPrimary }]}
+          >
+            {postUser?.username + " •" || "Unknown User"}
+          </Text>
+          <Text style={[styles.postCaptionText, { color: colors.textPrimary }]}>
+            {post.caption || "No caption."}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.postCommentSection}>
@@ -622,23 +602,47 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginLeft: 5,
   },
-  copyLinkBtn: {
-    padding: 4,
-  },
   postOptionsTrigger: {
     fontSize: 20,
+  },
+  optionsFullScreenOverlay: {
+    position: "absolute" as "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+  },
+  optionsBackdrop: {
+    position: "absolute" as "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   optionsOverlay: {
     position: "absolute" as "absolute",
     top: 60,
     right: 20,
-    borderWidth: 1,
-    borderRadius: 5,
-    padding: 10,
-    zIndex: 10,
+    zIndex: 11,
   },
   postOptionsMenu: {
-    // styles
+    borderRadius: 8,
+    minWidth: 140,
+    overflow: "hidden",
+  },
+  optionMenuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "transparent",
+  },
+  optionMenuText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  optionSeparator: {
+    height: 1,
+    marginHorizontal: 8,
   },
   postImageContainer: {
     width: "100%",
@@ -692,17 +696,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flexShrink: 1,
     flexWrap: "wrap" as "wrap",
-  },
-  captionInput: {
-    borderWidth: 1,
-    borderRadius: 5,
-    padding: 10,
-    minHeight: 60,
-  },
-  editButtons: {
-    flexDirection: "row" as "row",
-    justifyContent: "space-between" as "space-between",
-    marginTop: 10,
   },
   postCommentSection: {
     marginVertical: 4,

@@ -12,6 +12,7 @@ import {
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { FontAwesome } from "@expo/vector-icons";
 import {
   doc,
   onSnapshot,
@@ -23,11 +24,17 @@ import {
   addDoc,
   serverTimestamp,
   deleteDoc,
+  query,
+  where,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import timeFormat from "../config/timeFormat";
+import CommentInput from "../components/CommentInput";
+import CommentItem from "../components/CommentItem";
+import LikesListModal from "../components/LikesListModal";
 
 type PostDetailScreenRouteProp = RouteProp<RootStackParamList, "PostDetail">;
 type PostDetailScreenNavigationProp = NativeStackNavigationProp<
@@ -55,6 +62,7 @@ interface Comment {
   authorUsername: string;
   authorAvatar: string;
   createdAt: any;
+  likes?: string[];
 }
 
 const { width } = Dimensions.get("window");
@@ -71,6 +79,39 @@ const PostDetailScreen: React.FC = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const [isUpdatingLike, setIsUpdatingLike] = useState(false);
+  const [userDoc, setUserDoc] = useState<any>(null);
+  const [showLikes, setShowLikes] = useState(false);
+
+  // Fetch current user document
+  useEffect(() => {
+    if (!user) {
+      setUserDoc(null);
+      return;
+    }
+    const fetchUserDoc = async () => {
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setUserDoc(userDocSnap.data());
+        } else {
+          setUserDoc(null);
+        }
+      } catch (error) {
+        setUserDoc(null);
+      }
+    };
+    fetchUserDoc();
+  }, [user]);
+
+  const currentUser = user
+    ? {
+        uid: user.uid,
+        username: userDoc?.username || "",
+        avatarUrl: userDoc?.avatarUrl || "",
+        photoURL: userDoc?.photoURL || "",
+      }
+    : null;
 
   // Load post data
   useEffect(() => {
@@ -96,7 +137,7 @@ const PostDetailScreen: React.FC = () => {
     if (!postId) return;
 
     const commentsUnsub = onSnapshot(
-      collection(db, "posts", postId, "comments"),
+      query(collection(db, "comments"), where("postId", "==", postId)),
       (snapshot) => {
         const commentsData = snapshot.docs.map((doc) => ({
           id: doc.id,
@@ -139,8 +180,6 @@ const PostDetailScreen: React.FC = () => {
           likedByUsers: arrayRemove(user.uid),
           likesCount: increment(-1),
         });
-        setIsLiked(false);
-        setLikesCount((prev) => prev - 1);
       } else {
         await updateDoc(postRef, {
           likedByUsers: arrayUnion(user.uid),
@@ -159,9 +198,6 @@ const PostDetailScreen: React.FC = () => {
             read: false,
           });
         }
-
-        setIsLiked(true);
-        setLikesCount((prev) => prev + 1);
       }
     } catch (err) {
       console.error("Error toggling like:", err);
@@ -197,10 +233,12 @@ const PostDetailScreen: React.FC = () => {
       return;
 
     try {
-      await deleteDoc(doc(db, "posts", postId!, "comments", comment.id));
+      await deleteDoc(doc(db, "comments", comment.id));
       await updateDoc(doc(db, "posts", postId!), {
         commentsCount: increment(-1),
       });
+      // Update local state to remove the comment immediately
+      setComments((prev) => prev.filter((c) => c.id !== comment.id));
     } catch (err) {
       console.error("Error deleting comment:", err);
       Alert.alert("Error", "Failed to delete comment");
@@ -300,19 +338,12 @@ const PostDetailScreen: React.FC = () => {
             resizeMode="cover"
           />
 
-          {/* Post Caption */}
-          {post.caption && (
-            <Text style={{ fontSize: 16, lineHeight: 22, marginBottom: 15 }}>
-              {post.caption}
-            </Text>
-          )}
-
           {/* Actions */}
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
-              marginBottom: 15,
+              marginBottom: 10,
             }}
           >
             <TouchableOpacity
@@ -320,20 +351,45 @@ const PostDetailScreen: React.FC = () => {
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                marginRight: 20,
+                marginRight: 6,
               }}
             >
-              <Text style={{ fontSize: 24, marginRight: 5 }}>
-                {isLiked ? "❤️" : "🤍"}
-              </Text>
+              <FontAwesome
+                name="paw"
+                size={22}
+                color={isLiked ? "#e74c3c" : "gray"}
+                style={{ marginRight: 0 }}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setShowLikes(true)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginRight: 10,
+              }}
+            >
               <Text style={{ fontSize: 16 }}>{likesCount}</Text>
             </TouchableOpacity>
 
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text style={{ fontSize: 24, marginRight: 5 }}>💬</Text>
+              <FontAwesome
+                name="comment"
+                size={20}
+                color="gray"
+                style={{ marginRight: 5 }}
+              />
               <Text style={{ fontSize: 16 }}>{comments.length}</Text>
             </View>
           </View>
+
+          {/* Post Caption */}
+          {post.caption && (
+            <Text style={{ fontSize: 16, lineHeight: 22, marginBottom: 15 }}>
+              {post.caption}
+            </Text>
+          )}
         </View>
 
         {/* Comments Section */}
@@ -342,7 +398,7 @@ const PostDetailScreen: React.FC = () => {
             borderTopWidth: 1,
             borderTopColor: "#eee",
             paddingHorizontal: 15,
-            paddingTop: 15,
+            paddingTop: 10,
           }}
         >
           <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 15 }}>
@@ -361,71 +417,40 @@ const PostDetailScreen: React.FC = () => {
             </Text>
           ) : (
             comments.map((comment) => (
-              <View
+              <CommentItem
                 key={comment.id}
-                style={{
-                  flexDirection: "row",
-                  marginBottom: 15,
-                  paddingBottom: 15,
-                  borderBottomWidth: 1,
-                  borderBottomColor: "#f0f0f0",
-                }}
-              >
-                <Image
-                  source={
-                    comment.authorAvatar
-                      ? { uri: comment.authorAvatar }
-                      : require("../../assets/placeholderImg.jpg")
-                  }
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    marginRight: 10,
-                  }}
-                />
-                <View style={{ flex: 1 }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 5,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontWeight: "600",
-                        fontSize: 14,
-                        marginRight: 10,
-                      }}
-                    >
-                      {comment.authorUsername}
-                    </Text>
-                    <Text style={{ color: "#666", fontSize: 12 }}>
-                      {comment.createdAt
-                        ? timeFormat(comment.createdAt)
-                        : "Just now"}
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 14, lineHeight: 20 }}>
-                    {comment.text}
-                  </Text>
-                </View>
-                {user &&
-                  (user.uid === comment.authorId ||
-                    user.uid === post.userId) && (
-                    <TouchableOpacity
-                      onPress={() => handleDeleteComment(comment)}
-                      style={{ padding: 5 }}
-                    >
-                      <Text style={{ color: "#666", fontSize: 16 }}>🗑️</Text>
-                    </TouchableOpacity>
-                  )}
-              </View>
+                comment={comment}
+                currentUser={currentUser}
+                isPostOwner={post?.userId === currentUser?.uid}
+                onDelete={handleDeleteComment}
+                post={post}
+              />
             ))
           )}
         </View>
       </ScrollView>
+
+      {currentUser ? (
+        <View style={{ paddingHorizontal: 15, paddingVertical: 10 }}>
+          <CommentInput
+            post={post}
+            postId={postId!}
+            currentUser={currentUser}
+          />
+        </View>
+      ) : (
+        <View style={{ padding: 15, backgroundColor: "#f8f8f8" }}>
+          <Text style={{ textAlign: "center", color: "#666" }}>
+            Log in to comment
+          </Text>
+        </View>
+      )}
+
+      <LikesListModal
+        isOpen={showLikes}
+        onClose={() => setShowLikes(false)}
+        likedByUsers={post.likedByUsers || []}
+      />
     </SafeAreaView>
   );
 };

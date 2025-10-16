@@ -18,6 +18,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -98,13 +99,39 @@ const ProfileScreen: React.FC = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [loadingFollow, setLoadingFollow] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [modalType, setModalType] = useState<"followers" | "following" | null>(
     null
   );
-  const [postUserData, setPostUserData] = useState<UserProfile | null>(null);
-  const [showLikesModal, setShowLikesModal] = useState(false);
-  const [isUpdatingLike, setIsUpdatingLike] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentUserDoc, setCurrentUserDoc] = useState<UserProfile | null>(
+    null
+  );
+
+  // Load current user document data for CommentInput
+  useEffect(() => {
+    if (!authUser) {
+      setCurrentUserDoc(null);
+      return;
+    }
+    const currentUserDocRef = doc(db, "users", authUser.uid);
+    const unsub = onSnapshot(currentUserDocRef, (snap) => {
+      if (snap.exists()) {
+        setCurrentUserDoc(snap.data() as UserProfile);
+      } else {
+        setCurrentUserDoc(null);
+      }
+    });
+    return () => unsub();
+  }, [authUser]);
+
+  const currentUser = authUser
+    ? {
+        uid: authUser.uid,
+        username: currentUserDoc?.username || "",
+        avatarUrl: currentUserDoc?.avatarUrl || "",
+        photoURL: authUser.photoURL || "",
+      }
+    : null;
 
   // Load user profile data
   useEffect(() => {
@@ -171,28 +198,6 @@ const ProfileScreen: React.FC = () => {
     return () => unsub();
   }, [authUser, userId, isOwnProfile]);
 
-  // Load post user data when a post is selected
-  useEffect(() => {
-    if (!selectedPost) return;
-    const unsubPost = onSnapshot(doc(db, "posts", selectedPost.id), (snap) => {
-      if (snap.exists()) {
-        setSelectedPost({ id: snap.id, ...snap.data() } as Post);
-      }
-    });
-    const unsubUser = onSnapshot(
-      doc(db, "users", selectedPost.userId),
-      (snap) => {
-        if (snap.exists()) {
-          setPostUserData(snap.data() as UserProfile);
-        }
-      }
-    );
-    return () => {
-      unsubPost();
-      unsubUser();
-    };
-  }, [selectedPost]);
-
   const handleFollowToggle = async () => {
     if (!authUser || isOwnProfile || loadingFollow || !authUser.uid || !userId)
       return;
@@ -245,8 +250,6 @@ const ProfileScreen: React.FC = () => {
     const postRef = doc(db, "posts", post.id);
     const alreadyLiked = post.likedByUsers?.includes(authUser.uid);
     try {
-      if (isUpdatingLike) return;
-      setIsUpdatingLike(true);
       if (alreadyLiked) {
         await updateDoc(postRef, {
           likedByUsers: arrayRemove(authUser.uid),
@@ -260,8 +263,38 @@ const ProfileScreen: React.FC = () => {
       }
     } catch (err) {
       console.error("Error toggling like:", err);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // Refresh profile data
+      if (userId) {
+        const userDocRef = doc(db, "users", userId);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+          setProfileData(userSnap.data() as UserProfile);
+        }
+      }
+
+      // Refresh posts
+      const postsCollectionRef = collection(db, "posts");
+      const q = query(
+        postsCollectionRef,
+        where("userId", "==", userId),
+        orderBy("createdAt", "desc")
+      );
+      const querySnapshot = await getDocs(q);
+      const postsArray = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Post[];
+      setProfilePosts(postsArray);
+    } catch (err) {
+      console.error("Error refreshing profile:", err);
     } finally {
-      setIsUpdatingLike(false);
+      setRefreshing(false);
     }
   };
 
@@ -275,7 +308,7 @@ const ProfileScreen: React.FC = () => {
         borderRadius: 8,
         overflow: "hidden",
       }}
-      onPress={() => setSelectedPost(item)}
+      onPress={() => navigation.navigate("PostDetail", { postId: item.id })}
     >
       <Image
         source={
@@ -586,157 +619,9 @@ const ProfileScreen: React.FC = () => {
             <Text style={{ color: colors.textSecondary }}>No posts yet.</Text>
           </View>
         }
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
-
-      {/* Post Detail Modal - full image with bottom sheet */}
-      {selectedPost && (
-        <Modal
-          visible={!!selectedPost}
-          animationType="fade"
-          transparent
-          onRequestClose={() => setSelectedPost(null)}
-        >
-          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.95)" }}>
-            <TouchableOpacity
-              accessibilityLabel="Close post"
-              onPress={() => setSelectedPost(null)}
-              style={{
-                position: "absolute",
-                top: 30,
-                right: 12,
-                zIndex: 30,
-                backgroundColor: "rgba(255,255,255,0.95)",
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                justifyContent: "center",
-                alignItems: "center",
-                shadowColor: "#000",
-                shadowOpacity: 0.2,
-                shadowRadius: 4,
-                elevation: 6,
-              }}
-            >
-              <Text style={{ color: colors.textPrimary, fontSize: 20 }}>×</Text>
-            </TouchableOpacity>
-
-            <View
-              style={{
-                flex: 1,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <Image
-                source={
-                  selectedPost?.imageUrl
-                    ? { uri: selectedPost.imageUrl }
-                    : require("../../assets/placeholderImg.jpg")
-                }
-                style={{ width: "100%", height: "100%" }}
-                resizeMode="cover"
-              />
-            </View>
-
-            <View
-              style={{
-                width: "100%",
-                backgroundColor: colors.bgPrimary,
-                borderTopLeftRadius: 14,
-                borderTopRightRadius: 14,
-                paddingTop: 10,
-                paddingHorizontal: 12,
-                maxHeight: windowDims.height * 0.45,
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-              }}
-            >
-              <SafeAreaView style={{ flex: 1 }}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: colors.borderLight,
-                    alignSelf: "center",
-                    marginBottom: 10,
-                  }}
-                />
-
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginBottom: 8,
-                  }}
-                >
-                  {postUserData?.avatarUrl ? (
-                    <Image
-                      source={{ uri: postUserData.avatarUrl }}
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        marginRight: 10,
-                      }}
-                    />
-                  ) : (
-                    <Image
-                      source={require("../../assets/placeholderImg.jpg")}
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        marginRight: 10,
-                      }}
-                    />
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{ fontWeight: "700", color: colors.textPrimary }}
-                    >
-                      {postUserData?.username || "Unknown"}
-                    </Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                      {timeFormat(selectedPost?.createdAt)}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() =>
-                      selectedPost && handleLikeToggle(selectedPost)
-                    }
-                    style={{ padding: 8 }}
-                  >
-                    <Text style={{ fontSize: 18 }}>🐾</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {selectedPost?.caption ? (
-                  <Text style={{ marginBottom: 8, color: colors.textPrimary }}>
-                    {selectedPost.caption}
-                  </Text>
-                ) : null}
-
-                <View style={{ flex: 1, marginBottom: 6 }}>
-                  <CommentList
-                    postId={selectedPost!.id}
-                    currentUser={authUser}
-                    isPostOwner={selectedPost!.userId === authUser?.uid}
-                    post={selectedPost!}
-                  />
-                </View>
-
-                <CommentInput
-                  postId={selectedPost!.id}
-                  currentUser={authUser}
-                  post={selectedPost!}
-                />
-              </SafeAreaView>
-            </View>
-          </View>
-        </Modal>
-      )}
 
       {/* Modals */}
       {showEditModal && (
@@ -757,14 +642,6 @@ const ProfileScreen: React.FC = () => {
           onClose={() => setModalType(null)}
           userId={userId}
           type={modalType}
-        />
-      )}
-
-      {showLikesModal && selectedPost && (
-        <LikesListModal
-          isOpen={showLikesModal}
-          onClose={() => setShowLikesModal(false)}
-          likedByUsers={selectedPost.likedByUsers || []}
         />
       )}
     </SafeAreaView>
